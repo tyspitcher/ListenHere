@@ -17,10 +17,26 @@ architectural or product decision changes.
 - Bundle identifier: `com.tysonpitcher.ListenHere`
 - Project: `ListenHere.xcodeproj`
 - Scheme: `ListenHere`
+- Context: personal iOS developer-program capstone intended for App Store submission and
+  portfolio use
 
-The project is at an early stage and still contains Xcode template code. `Item.swift` and
-the current `ContentView` CRUD flow are placeholders, not domain conventions to preserve.
-Replace them incrementally within a scoped feature or issue.
+The project is at an early feature stage. The template `Item` model and CRUD interface have
+been removed. All Memories is the app shell, and the domain, repository, preview, theme, and
+Recently Deleted foundations are in place.
+
+## Canonical Project References
+
+- Read this file first for repository-wide rules and durable product decisions.
+- Read [`Documentation/ProductBrief.md`](Documentation/ProductBrief.md) when a task affects
+  the product promise, audience, capstone scope, privacy position, or framework learning goals.
+- Read [`Documentation/ProductArchitecture.md`](Documentation/ProductArchitecture.md)
+  when a task affects navigation, feature boundaries, data relationships, or view naming.
+- Read [`Documentation/DesignSystem.md`](Documentation/DesignSystem.md) when a task creates
+  or changes visible UI, interaction behavior, theming, colors, backgrounds, or components.
+- Read only the feature files named by that map and the files directly involved in the
+  requested change; do not scan the entire repository by default.
+- Update the map in the same change whenever a route, feature owner, model relationship,
+  or canonical filename changes.
 
 ## Product Intent
 
@@ -33,16 +49,49 @@ A memory can contain:
 - One ambient recording
 - An optional title and caption
 - An editable date and location
-- A journal assignment
+- One or more journal assignments
 - Non-destructive visual styling and audio edits
 
 Core behavior and terminology:
 
-- Launch into **All Memories**, showing recent memories across every journal.
+- Use **All Memories**, showing recent memories across every journal, as the initial and
+  fallback root. On later launches, restore the last valid stable browsing path.
 - A **Library** hub leads to **Journals** and **Places**.
 - Journals organize memories into collections such as family, everyday moments, or a trip.
+- `MemoryListView` is the journal-detail screen. It shows the memories assigned to one
+  selected journal; do not create a separate `JournalDetailView` unless this decision is
+  deliberately revisited.
+- Never restore transient capture, edit, permission, sheet, or confirmation state. If a saved
+  memory or journal destination no longer exists, return to **All Memories**.
+- A memory created from **All Memories** is assigned automatically to the default journal.
+- The first journal created becomes the default. A different default can be selected later
+  in Settings.
+- The memory ellipsis menu presents journal assignment in a sheet. From there, a person can
+  move the memory to a different journal or assign it to multiple journals.
+- Journal membership is therefore many-to-many: a memory may belong to one or more journals,
+  and a journal may contain many memories.
+- Deleting a non-empty journal follows Apple Journal's two-stage pattern. First present
+  **Delete Journal Only**, **Delete Journal & Memories**, and **Cancel**. Choosing journal-only
+  must then present a destination-journal picker before anything is deleted.
+- Moving memories during journal-only deletion adds the selected active journal assignment,
+  preserves any other active journal assignments, and retains the deleted source relationship
+  for recovery. If the deleted journal was the default, the selected destination becomes the
+  new default in the same transaction.
+- **Delete Journal & Memories** moves the journal and every contained memory to Recently
+  Deleted in one batch. If that includes memories shared with other journals, say so clearly.
+- Journal and memory deletion is soft by default. Retain deleted records, managed-media
+  references, relationships, deletion time, and deletion-batch identity in **Recently Deleted**
+  so the user can restore them. Permanently delete metadata and media only through an explicit
+  purge operation or after 30 days.
+- Check for expired Recently Deleted items at app launch and whenever the Recently Deleted
+  view loads. iOS does not guarantee execution at the exact expiration moment.
+- An item's ellipsis action in Recently Deleted presents **Recover** and **Delete Permanently**.
+  Recovery restores active journal assignments. If none of the original journals remain
+  active, assign the memory to the protected system **Unassigned** journal.
 - The default creation path is photo first, followed by an invitation to record sound.
 - Support **Take Photo**, **Choose from Library**, and **Record Sound Only**.
+- When permission is granted, use capture location and available photo metadata as helpful
+  starting values. Location remains optional and editable, and denial must not block capture.
 - Restore and retain the **10 / 20 / 30 second recording-duration picker**.
 - Hide the duration picker after recording starts; show the countdown, waveform, and Stop.
 - Audio never autoplays. The user deliberately presses Play.
@@ -67,9 +116,25 @@ MVP priority, highest first:
 StoreKit, advanced stickers, and crossfade looping are post-capstone unless explicitly
 promoted into scope.
 
+## Learning Context
+
+AVFoundation and MapKit are essential learning goals for this capstone, not incidental
+dependencies. Whenever code first introduces or meaningfully changes either framework, add
+brief educational comments beside the important framework boundary covering:
+
+- What responsibility the framework performs in that change
+- The principal Apple types involved
+- Why the code lives behind its service or protocol boundary
+- Any permission, interruption, route, or lifecycle behavior that matters
+
+Comments should explain intent, framework responsibility, or easy-to-miss lifecycle behavior;
+they must not narrate ordinary Swift syntax. Distinguish MapKit, which renders and manages map
+interaction, from Core Location, which provides device location and authorization. Do not
+repeat this material in the handoff unless it describes a remaining risk or verification need.
+
 ## Brand and Experience
 
-The source brand notes are in `ListenHere/BrandAttirbutes.md`.
+The source brand notes are in `ListenHere/BrandAttributes.md`.
 
 Primary attributes:
 
@@ -84,14 +149,26 @@ expressive, clean, elegant, reliable, and easy to use.
 
 Visual direction:
 
-- Warm cream, heavyweight-paper background with restrained texture
+- Warm cream, heavyweight-paper background with restrained texture in light mode
 - White instant-photo edges with a slightly deeper lower border
 - Soft, realistic shadows that create subtle physical depth
 - SF Pro and SF Symbols for controls, metadata, and body text
 - Handwritten typography only as a readable accent
-- Muted terracotta, sage, dusty blue, and ochre accents
+- A jewel-tone default palette: Deep Sapphire `#1D5C8A` as primary, Muted Emerald
+  `#20755C` as secondary, and Warm Garnet `#94384B` as tertiary
 - Content-first presentation inspired by Apple Journal and Apple Photos
 - Apple Maps-inspired interaction for Places
+
+The Figma exports are flow and information-hierarchy references, not pixel-perfect visual
+specifications. Prefer native Apple navigation, toolbars, menus, sheets, buttons, pickers,
+search, camera/photo interfaces, and platform behaviors whenever they meet the product need.
+Apple-style familiarity and HIG compliance take precedence over custom Figma chrome.
+
+Keep brand styling centralized and themeable. Feature views must consume semantic theme
+values rather than hard-code brand colors, textures, background patterns, shadows, or type
+treatments. Preserve a path for future user-selectable themes without requiring feature-view
+rewrites. See `Documentation/DesignSystem.md` for the source hierarchy and implementation
+constraints.
 
 Avoid torn-paper edges, arbitrary postage marks, excessive stickers, exaggerated shadows,
 visual clutter, and travel-only language. The app must feel appropriate for ordinary life,
@@ -278,7 +355,16 @@ Prefer one primary type per file and name the file after that type.
 ## Navigation
 
 - Use `NavigationStack` and value-based destinations for SwiftUI navigation.
+- Use **All Memories** as the initial and fallback launch destination and keep it distinct
+  from `MemoryListView`, which is scoped to one journal. Later launches restore the last valid
+  stable browsing path.
+- Treat the Apple Journal app as the primary interaction reference for the entry list,
+  journal switching, new-memory placement, and journal-assignment sheet while preserving
+  ListenHere's own visual identity and photo-plus-ambient-sound purpose.
 - Use sheets for short selection and editing tasks.
+- Use the native confirmation dialog and a destination-selection sheet for journal deletion;
+  do not replace this flow with a custom alert replica.
+- Present journal assignment from a memory's ellipsis menu as a sheet with multi-selection.
 - Use full-screen presentation for camera, active recording, and immersive media editors.
 - As the number of flows grows, centralize app-level routing in `AppRouter`.
 - View models may decide *where* an intent leads; SwiftUI views or the router decide *how*
@@ -317,10 +403,12 @@ Expected frameworks include:
 
 - SwiftUI for interface and navigation
 - SwiftData for local metadata persistence
-- AVFoundation for recording, playback, trimming, and export composition
+- AVFoundation for ambient recording, metering, playback, interruption and route handling,
+  trimming or replacement, and still-image-plus-audio video export
 - PhotosUI for selecting library photos
 - UIKit interop only where needed for camera capture or system sharing
-- MapKit and CoreLocation for Places and editable location
+- MapKit for Places browsing, annotations, selection, and memory previews; Core Location for
+  capture coordinates and location authorization
 - Core Image for non-destructive photo filters
 - CloudKit/SwiftData sync for private iCloud synchronization
 - OSLog for privacy-aware diagnostics
@@ -362,6 +450,13 @@ Privacy is a product feature.
 ## Design, HIG, and Accessibility
 
 - Follow Apple Human Interface Guidelines and platform conventions.
+- Use native SwiftUI controls and standard navigation behavior by default. Customize only
+  where the customization expresses a confirmed ListenHere product or brand requirement.
+- Treat the Figma screens as references for content, hierarchy, and flow; do not reproduce
+  their custom controls when a standard Apple control provides the same behavior.
+- Consume semantic design tokens from one injected app theme. Do not place raw brand colors,
+  background textures, or theme-selection branches throughout feature views.
+- Keep visual theme choice separate from system light/dark appearance so both can evolve.
 - Keep interactive targets at least 44 by 44 points.
 - Support Dynamic Type without truncating essential actions.
 - Add meaningful VoiceOver labels, values, hints, and grouping.
@@ -479,4 +574,3 @@ Before accepting a feature or pull request, confirm:
 - Unit tests cover success, failure, cancellation, and important mapping.
 - UI supports accessibility and privacy requirements.
 - The implementation matches current MVP priority and product terminology.
-
