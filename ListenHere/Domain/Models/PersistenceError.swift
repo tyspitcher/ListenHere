@@ -1,3 +1,5 @@
+// Defines typed persistence failures that repositories can translate into recoverable feature states.
+
 import Foundation
 
 enum ListenHerePersistenceError: Error, Equatable {

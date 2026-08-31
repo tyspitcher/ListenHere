@@ -1,3 +1,5 @@
+// Owns app-level navigation state, restores valid browsing routes, and falls back safely.
+
 import Foundation
 import Observation
 

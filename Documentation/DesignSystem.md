@@ -36,12 +36,14 @@ not intended UI assets.
 
 - Use `NavigationStack` and value-based destinations for pushed routes.
 - Use toolbar items and `Menu` for contextual actions such as a memory's ellipsis menu.
-- Use sheets for short choices such as capture source and journal assignment.
+- Use one large modal sheet for the New Memory composer. Use adaptive popovers for its photo
+  and sound source choices, preserving native compact-sheet adaptation on iPhone.
 - For a non-empty journal, use a native destructive confirmation with **Delete Journal Only**,
   **Delete Journal & Memories**, and **Cancel**. If journal-only is chosen, follow with a native
   sheet titled **Move Memories** containing a journal picker, the affected count, **Move
   Memories & Delete Journal**, and **Cancel**.
-- Use full-screen presentation for camera capture, active recording, and immersive editing.
+- Use full-screen presentation for camera capture and immersive editing. Keep active recording
+  visible in the composer's sound tile with a Stop label, stop icon, elapsed timer, and waveform.
 - Use `PhotosPicker` for photo-library selection unless a confirmed requirement needs more.
 - Use `searchable()` for journal and place search where it fits the screen.
 - Use system alerts and permission prompts. A custom rationale screen may explain the benefit
@@ -49,6 +51,21 @@ not intended UI assets.
 - Use `ContentUnavailableView` for appropriate empty and no-results states.
 - Start with standard button styles, materials, list behavior, safe-area handling, and system
   transitions. Add custom treatment only when it communicates a confirmed product role.
+
+## New Memory Composer
+
+- Present Add Photo and Add Sound as large media tiles. Lay them out side by side when space
+  permits and stack them at accessibility Dynamic Type sizes.
+- Replace a source tile with its media preview after import. Photo uses aspect fill; sound uses
+  a waveform, explicit play or pause control, playback progress, and elapsed and total time.
+- Put optional Title and Description directly below the media tiles. Pin Save Memory above the
+  bottom safe area so media size, scrolling, and the keyboard do not hide it.
+- Disable and visually de-emphasize Save until a photo or sound exists. Do not use title or
+  description alone to enable it.
+- Media trash controls require a native confirmation dialog and a 44-point target. Removing
+  one medium preserves the other medium and all metadata.
+- Keep Cancel in the toolbar. Confirm leaving whenever media, recording, title, or description
+  exists; an untouched composer dismisses immediately.
 
 ## Theme Architecture
 
@@ -89,7 +106,7 @@ stable even if its visual recipe evolves so saved preferences remain valid.
 - Primary / accent: Deep Sapphire `#1D5C8A`
 - Secondary accent: Muted Emerald `#20755C`
 - Tertiary accent: Warm Garnet `#94384B`
-- Light backdrop: `PaperBackground` from the production asset catalog over a warm cream base
+- Light backdrop: `WatercolorPaper` from the production asset catalog over a warm cream base
 - Dark backdrop: a solid deep blue-black surface; the light paper image is intentionally not
   used in dark mode
 
@@ -113,6 +130,9 @@ renders the selected light/dark backdrop centrally.
   content.
 - Keep shadows soft and purposeful. Do not use elevation to compensate for unclear hierarchy.
 - Avoid fixed text sizes and rigid frames that break Dynamic Type or iPad layouts.
+- Memory cards fill the available list width in compact horizontal size classes. In regular
+  width, center cards at a maximum width of 720 points so photos and metadata remain readable;
+  iPad multitasking follows the current environment size class automatically.
 - Respect Reduce Motion, Increase Contrast, Differentiate Without Color, and Reduce
   Transparency where the chosen effects are affected.
 - Maintain at least 44-by-44-point interaction targets.
@@ -147,7 +167,7 @@ Durable copies for Product Design workflows are stored under:
 | Places map | `listenhere-figma-places-map.png` | Map browsing, search, selection, and memory preview concept |
 | Journals grid | `listenhere-figma-journals-grid.png` | Searchable journal collection and creation concept |
 | Memory detail, hero | `listenhere-figma-memory-detail-hero.png` | Media, playback, title, caption, edit, and share hierarchy |
-| Create-memory source sheet | `listenhere-figma-create-memory-source-sheet.png` | Take Photo, Choose from Library, and Record Sound Only choices |
+| Create-memory source sheet | `listenhere-figma-create-memory-source-sheet.png` | Take Photo, Choose from Library, and Voice Recording choices |
 | Camera rationale | `listenhere-figma-camera-permission-rationale.png` | Pre-permission explanation concept; do not imitate the system prompt |
 | Camera capture | `listenhere-figma-camera-live-capture.png` | Full-screen capture controls and cancellation concept |
 | Captured-photo review | `listenhere-figma-camera-photo-review.png` | Retake or accept decision |

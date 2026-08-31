@@ -55,6 +55,34 @@ struct AllMemoriesViewModelTests {
         #expect(viewModel.state == .loaded([newMemory]))
     }
 
+    @Test("Loading resolves an existing managed photo for card presentation")
+    @MainActor
+    func loadResolvesManagedPhotoURL() async throws {
+        let mediaStore = InMemoryManagedMediaStore()
+        let file = try mediaStore.store(Data("photo".utf8), as: .photo, preferredFileExtension: "heic")
+        let memory = MemorySummary(
+            id: UUID(),
+            title: "Park",
+            caption: nil,
+            capturedAt: .init(timeIntervalSince1970: 1),
+            thumbnail: .managedFile(file.filename),
+            hasAudio: false,
+            audioDurationSeconds: nil,
+            locationName: nil,
+            journalNames: []
+        )
+        let viewModel = AllMemoriesViewModel(
+            repository: MemoryRepositoryStub(result: .success([memory])),
+            mediaReader: mediaStore
+        )
+
+        viewModel.load()
+        await Task.yield()
+        await Task.yield()
+
+        #expect(viewModel.managedPhotoURL(for: memory) == URL(filePath: "/in-memory/\(file.filename)"))
+    }
+
     private func makeSummary(id: UUID, title: String) -> MemorySummary {
         MemorySummary(
             id: id,

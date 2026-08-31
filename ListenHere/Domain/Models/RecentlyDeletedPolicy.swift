@@ -1,3 +1,5 @@
+// Centralizes the retention duration and expiry calculations for Recently Deleted items.
+
 import Foundation
 
 enum RecentlyDeletedPolicy {

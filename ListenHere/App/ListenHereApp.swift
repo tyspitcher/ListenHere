@@ -1,3 +1,5 @@
+// Configures the SwiftUI app scene, SwiftData container, managed media store, repositories, and maintenance.
+// It is the live composition root for ListenHere.
 //
 //  ListenHereApp.swift
 //  ListenHere
@@ -17,7 +19,7 @@ struct ListenHereApp: App {
     )
 
     private let sharedModelContainer: ModelContainer
-    private let appContainer: AppContainer
+    @State private var appContainer: AppContainer
 
     init() {
         let container = Self.makeModelContainer()
@@ -46,7 +48,8 @@ struct ListenHereApp: App {
         appContainer = AppContainer(
             memoryRepository: memoryRepository,
             journalRepository: journalRepository,
-            recentlyDeletedRepository: recentlyDeletedRepository
+            recentlyDeletedRepository: recentlyDeletedRepository,
+            mediaStore: mediaStore
         )
 
         do {
@@ -73,7 +76,8 @@ struct ListenHereApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(container: appContainer)
+            ContentView()
+                .environment(appContainer)
         }
         .modelContainer(sharedModelContainer)
     }

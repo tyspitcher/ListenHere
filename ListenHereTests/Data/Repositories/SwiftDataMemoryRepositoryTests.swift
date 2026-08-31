@@ -111,6 +111,103 @@ struct SwiftDataMemoryRepositoryTests {
         #expect(try setup.context.fetch(FetchDescriptor<Journal>()).isEmpty)
     }
 
+    @Test("Updating saved content replaces media references and metadata together")
+    @MainActor
+    func updateContentPersistsOneSnapshot() throws {
+        let setup = try makeSetup()
+        let memory = try setup.repository.createMemory(
+            from: MemoryDraft(
+                capturedAt: Date(timeIntervalSince1970: 1_000),
+                title: "Original",
+                photoFilename: "photos/original.heic",
+                audioFilename: "audio/original.m4a",
+                audioDurationSeconds: 8
+            ),
+            origin: .allMemories
+        )
+        let newDate = Date(timeIntervalSince1970: 2_000)
+
+        try setup.repository.updateMemoryContent(
+            id: memory.id,
+            update: MemoryContentUpdate(
+                title: "  Updated  ",
+                caption: "  New description  ",
+                capturedAt: newDate,
+                photoFilename: nil,
+                audioFilename: "audio/replacement.m4a",
+                audioDurationSeconds: 12
+            )
+        )
+
+        #expect(memory.title == "Updated")
+        #expect(memory.caption == "New description")
+        #expect(memory.capturedAt == newDate)
+        #expect(memory.photoFilename == nil)
+        #expect(memory.audioFilename == "audio/replacement.m4a")
+        #expect(memory.audioDurationSeconds == 12)
+    }
+
+    @Test("Updating saved content replaces journal assignments in the same snapshot")
+    @MainActor
+    func updateContentReplacesJournalAssignments() async throws {
+        let setup = try makeSetup()
+        let family = Journal(name: "Family", isDefault: true)
+        let nature = Journal(name: "Nature")
+        setup.context.insert(family)
+        setup.context.insert(nature)
+        try setup.context.save()
+        let memory = try setup.repository.createMemory(
+            from: MemoryDraft(
+                photoFilename: "photos/original.heic",
+                journalIDs: [family.id]
+            ),
+            origin: .allMemories
+        )
+
+        try setup.repository.updateMemoryContent(
+            id: memory.id,
+            update: MemoryContentUpdate(
+                title: memory.title,
+                caption: memory.caption,
+                capturedAt: memory.capturedAt,
+                photoFilename: memory.photoFilename,
+                audioFilename: memory.audioFilename,
+                audioDurationSeconds: memory.audioDurationSeconds,
+                journalIDs: [family.id, nature.id]
+            )
+        )
+
+        #expect(Set(memory.journals?.map(\.id) ?? []) == [family.id, nature.id])
+        let summary = try #require(await setup.repository.fetchActiveMemory(id: memory.id))
+        #expect(summary.journalIDs == [family.id, nature.id])
+        #expect(Set(summary.journalNames) == ["Family", "Nature"])
+    }
+
+    @Test("Updating saved content refuses to remove the final medium")
+    @MainActor
+    func updateContentRequiresMedia() throws {
+        let setup = try makeSetup()
+        let memory = try setup.repository.createMemory(
+            from: MemoryDraft(photoFilename: "photos/original.heic"),
+            origin: .allMemories
+        )
+
+        #expect(throws: ListenHerePersistenceError.invalidDraft(.missingMedia)) {
+            try setup.repository.updateMemoryContent(
+                id: memory.id,
+                update: MemoryContentUpdate(
+                    title: nil,
+                    caption: nil,
+                    capturedAt: memory.capturedAt,
+                    photoFilename: nil,
+                    audioFilename: nil,
+                    audioDurationSeconds: nil
+                )
+            )
+        }
+        #expect(memory.photoFilename == "photos/original.heic")
+    }
+
     @MainActor
     private func makeSetup() throws -> (
         context: ModelContext,

@@ -1,6 +1,9 @@
+// Provides the persistence boundary for saving and loading the last stable navigation route.
+
 import Foundation
 
-protocol NavigationStateStore: Sendable {
+@MainActor
+protocol NavigationStateStore {
     func loadPath() -> [AppRoute]
     func savePath(_ path: [AppRoute])
 }

@@ -1,3 +1,5 @@
+// Persists journal queries, default-journal rules, assignments, and soft-deletion transactions.
+
 import Foundation
 import SwiftData
 
@@ -61,6 +63,29 @@ final class SwiftDataJournalRepository: JournalRepository {
                 journal.isDefault = journal.id == id
                 journal.modifiedAt = date
             }
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
+
+    func renameJournal(id: UUID, name: String, at date: Date = Date()) throws {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedName.isEmpty == false else {
+            throw ListenHerePersistenceError.emptyJournalName
+        }
+
+        do {
+            guard let journal = try fetchJournal(id: id), journal.isRecentlyDeleted == false else {
+                throw ListenHerePersistenceError.journalNotFound
+            }
+            guard journal.isSystemUnassigned == false else {
+                throw ListenHerePersistenceError.protectedJournal
+            }
+
+            journal.name = trimmedName
+            journal.modifiedAt = date
             try modelContext.save()
         } catch {
             modelContext.rollback()

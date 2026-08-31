@@ -50,7 +50,8 @@ struct AppRouterTests {
     }
 }
 
-private final class NavigationStateStoreStub: NavigationStateStore, @unchecked Sendable {
+@MainActor
+private final class NavigationStateStoreStub: NavigationStateStore {
     let path: [AppRoute]
     private(set) var savedPaths: [[AppRoute]] = []
 
@@ -96,6 +97,9 @@ private final class RouterJournalRepository: JournalRepository {
 
     func fetchActiveJournals() async throws -> [JournalSummary] { journals }
     func createJournal(name: String, at date: Date) throws -> Journal {
+        throw RouterTestError.unavailable
+    }
+    func renameJournal(id: UUID, name: String, at date: Date) throws {
         throw RouterTestError.unavailable
     }
     func setDefaultJournal(id: UUID, at date: Date) throws {

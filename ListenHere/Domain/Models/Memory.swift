@@ -1,3 +1,5 @@
+// Defines the SwiftData memory model, media references, journal relationships, location, and deletion state.
+
 import Foundation
 import SwiftData
 

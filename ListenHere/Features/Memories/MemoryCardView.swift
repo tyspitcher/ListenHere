@@ -1,10 +1,14 @@
+// Renders a reusable media-first card with memory title, caption, location, and audio metadata.
+
 import SwiftUI
 
 struct MemoryCardView: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let memory: MemorySummary
+    let managedPhotoURL: URL?
 
     var body: some View {
         let palette = theme.palette(for: colorScheme)
@@ -28,6 +32,7 @@ struct MemoryCardView: View {
             }
         }
         .padding(14)
+        .frame(maxWidth: maximumCardWidth, alignment: .leading)
         .background(palette.elevatedSurface, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.10), radius: 10, y: 4)
         .accessibilityElement(children: .combine)
@@ -35,32 +40,41 @@ struct MemoryCardView: View {
 
     @ViewBuilder
     private var media: some View {
-        switch memory.thumbnail {
-        case .previewAsset(let name):
-            Image(name)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .aspectRatio(4 / 3, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .accessibilityHidden(true)
-        case .managedFile:
-            mediaPlaceholder(systemImage: "photo")
-        case nil:
-            mediaPlaceholder(systemImage: memory.hasAudio ? "waveform" : "photo")
-        }
-    }
-
-    private func mediaPlaceholder(systemImage: String) -> some View {
         let palette = theme.palette(for: colorScheme)
-        return ZStack {
-            palette.surface
-            Image(systemName: systemImage)
-                .font(.system(size: 42))
-                .foregroundStyle(palette.accent)
-        }
+        // The base establishes the card's finite size. Overlay content cannot enlarge
+        // that size, so even extremely wide panoramas remain inside the list row.
+        Color.clear
         .frame(maxWidth: .infinity)
         .aspectRatio(4 / 3, contentMode: .fit)
+        .background(palette.surface)
+        .overlay {
+            Group {
+                switch memory.thumbnail {
+                case .previewAsset(let name):
+                    Image(name)
+                        .resizable()
+                        .scaledToFill()
+                case .managedFile:
+                    if let managedPhotoURL {
+                        ManagedPhotoImageView(
+                            photoURL: managedPhotoURL,
+                            contentMode: .fill,
+                            maximumPixelSize: 700
+                        )
+                    } else {
+                        Image(systemName: "photo")
+                            .font(.system(size: 42))
+                            .foregroundStyle(palette.accent)
+                    }
+                case nil:
+                    Image(systemName: memory.hasAudio ? "waveform" : "photo")
+                        .font(.system(size: 42))
+                        .foregroundStyle(palette.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityHidden(true)
     }
@@ -94,5 +108,9 @@ struct MemoryCardView: View {
         guard let duration = memory.audioDurationSeconds else { return "Includes sound" }
         let seconds = max(0, Int(duration.rounded()))
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private var maximumCardWidth: CGFloat {
+        horizontalSizeClass == .regular ? 720 : .infinity
     }
 }

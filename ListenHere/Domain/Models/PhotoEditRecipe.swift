@@ -1,3 +1,5 @@
+// Stores the non-destructive photo filter, crop, intensity, and rotation recipe for a memory.
+
 import Foundation
 import SwiftData
 

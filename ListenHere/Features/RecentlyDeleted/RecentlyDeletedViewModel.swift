@@ -1,3 +1,4 @@
+// Loads Recently Deleted items and coordinates recovery, permanent deletion, and expiry cleanup.
 import Foundation
 import Observation
 

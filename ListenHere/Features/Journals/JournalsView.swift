@@ -1,8 +1,7 @@
+// Renders the journal collection list and owns native creation, editing, and deletion presentation.
 import SwiftUI
 
 struct JournalsView: View {
-    @Environment(\.appTheme) private var theme
-    @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel: JournalsViewModel
 
     init(viewModel: JournalsViewModel) {
@@ -10,62 +9,22 @@ struct JournalsView: View {
     }
 
     var body: some View {
-        let palette = theme.palette(for: colorScheme)
-
-        Group {
-            switch viewModel.state {
-            case .loading:
-                ProgressView("Loading Journals")
-            case .loaded(let journals) where journals.isEmpty:
-                ContentUnavailableView(
-                    "No Journals Yet",
-                    systemImage: "book.closed",
-                    description: Text("Your first journal will be created when you save a memory.")
-                )
-            case .loaded(let journals):
-                List(journals) { journal in
-                    NavigationLink(value: AppRoute.journal(journal.id)) {
-                        Label {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(journal.name)
-                                    if journal.isDefault {
-                                        Text("Default Journal")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                Text(journal.memoryCount, format: .number)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            Image(systemName: journal.isSystemUnassigned ? "tray" : "book.closed")
-                                .foregroundStyle(
-                                    journal.isDefault ? palette.accent : palette.secondaryAccent
-                                )
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if journal.isSystemUnassigned == false {
-                            Button("Delete", systemImage: "trash", role: .destructive) {
-                                viewModel.requestDeletion(of: journal)
-                            }
-                        }
-                    }
+        JournalsContentView(viewModel: viewModel)
+        .navigationTitle("Journals")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("New Journal", systemImage: "plus") {
+                    viewModel.requestJournalCreation()
                 }
-            case .failed(let message):
-                ContentUnavailableView(
-                    "Journals Unavailable",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(message)
-                )
             }
         }
-        .scrollContentBackground(.hidden)
-        .appScreenBackground()
-        .navigationTitle("Journals")
-        .task { await viewModel.load() }
+        .sheet(item: nameEditorBinding) { editor in
+            JournalNameSheet(
+                editor: editor,
+                save: viewModel.saveJournalName,
+                cancel: viewModel.dismissNameEditor
+            )
+        }
         .confirmationDialog(
             deletionTitle,
             isPresented: deletionConfirmationBinding,
@@ -103,7 +62,7 @@ struct JournalsView: View {
                 .interactiveDismissDisabled(viewModel.isPerformingDeletion)
         }
         .alert(
-            "Journal Not Deleted",
+            "Couldn’t Update Journal",
             isPresented: errorBinding,
             actions: {
                 Button("OK") { viewModel.dismissError() }
@@ -142,6 +101,15 @@ struct JournalsView: View {
             get: { viewModel.errorMessage != nil },
             set: { isPresented in
                 if isPresented == false { viewModel.dismissError() }
+            }
+        )
+    }
+
+    private var nameEditorBinding: Binding<JournalNameEditor?> {
+        Binding(
+            get: { viewModel.nameEditor },
+            set: { editor in
+                if editor == nil { viewModel.dismissNameEditor() }
             }
         )
     }
