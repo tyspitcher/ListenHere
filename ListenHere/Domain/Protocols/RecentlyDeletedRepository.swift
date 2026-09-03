@@ -1,3 +1,5 @@
+// Defines listing, recovery, permanent deletion, and expiry maintenance for Recently Deleted.
+
 import Foundation
 
 @MainActor

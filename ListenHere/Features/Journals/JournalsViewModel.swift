@@ -1,3 +1,5 @@
+// Loads journals and coordinates default selection plus the two-stage journal deletion flow.
+
 import Foundation
 import Observation
 
@@ -14,6 +16,20 @@ struct JournalMoveRequest: Identifiable, Equatable {
     var id: UUID { journal.id }
 }
 
+enum JournalNameEditor: Identifiable, Equatable {
+    case create
+    case rename(JournalSummary)
+
+    var id: String {
+        switch self {
+        case .create:
+            "create"
+        case .rename(let journal):
+            "rename-\(journal.id.uuidString)"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class JournalsViewModel {
@@ -22,6 +38,7 @@ final class JournalsViewModel {
     private(set) var moveRequest: JournalMoveRequest?
     private(set) var errorMessage: String?
     private(set) var isPerformingDeletion = false
+    private(set) var nameEditor: JournalNameEditor?
     private let repository: any JournalRepository
 
     init(repository: any JournalRepository) {
@@ -42,6 +59,46 @@ final class JournalsViewModel {
     func requestDeletion(of journal: JournalSummary) {
         guard journal.isSystemUnassigned == false else { return }
         journalPendingDeletion = journal
+    }
+
+    func requestJournalCreation() {
+        nameEditor = .create
+    }
+
+    func requestRename(of journal: JournalSummary) {
+        guard journal.isSystemUnassigned == false else { return }
+        nameEditor = .rename(journal)
+    }
+
+    func dismissNameEditor() {
+        nameEditor = nil
+    }
+
+    @discardableResult
+    func saveJournalName(_ rawName: String) async -> Bool {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.isEmpty == false else {
+            errorMessage = "Enter a name for the journal."
+            return false
+        }
+        guard let nameEditor else { return false }
+
+        do {
+            switch nameEditor {
+            case .create:
+                _ = try repository.createJournal(name: name, at: Date())
+            case .rename(let journal):
+                try repository.renameJournal(id: journal.id, name: name, at: Date())
+            }
+            self.nameEditor = nil
+            state = .loaded(try await repository.fetchActiveJournals())
+            return true
+        } catch is CancellationError {
+            return false
+        } catch {
+            errorMessage = "This journal couldn’t be saved. Try again."
+            return false
+        }
     }
 
     func cancelDeletion() {

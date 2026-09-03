@@ -1,3 +1,5 @@
+// Implements Recently Deleted listing, recovery, permanent removal, expiry, and managed-media cleanup.
+
 import Foundation
 import SwiftData
 

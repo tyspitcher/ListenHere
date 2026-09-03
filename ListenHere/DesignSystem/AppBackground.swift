@@ -1,3 +1,5 @@
+// Renders the theme-selected app background treatment, including solid colors and paper textures.
+
 import SwiftUI
 
 struct AppBackground: View {

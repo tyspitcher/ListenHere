@@ -1,3 +1,5 @@
+// Stores non-destructive presentation identifiers for a memory's border and typography styles.
+
 import Foundation
 import SwiftData
 

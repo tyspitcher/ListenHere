@@ -1,3 +1,5 @@
+// Stores a non-destructive decoration's asset, normalized placement, scale, rotation, and stacking order.
+
 import Foundation
 import SwiftData
 

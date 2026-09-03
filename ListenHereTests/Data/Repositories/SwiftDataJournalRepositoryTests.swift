@@ -29,6 +29,32 @@ struct SwiftDataJournalRepositoryTests {
         #expect(second.isDefault)
     }
 
+    @Test("Renaming a journal trims its name and updates its modification date")
+    @MainActor
+    func renamingJournalPersistsMetadata() throws {
+        let setup = try makeSetup()
+        let journal = try setup.repository.createJournal(name: "Trip", at: .init(timeIntervalSince1970: 1))
+
+        try setup.repository.renameJournal(id: journal.id, name: "  Summer Trip  ", at: .init(timeIntervalSince1970: 2))
+
+        #expect(journal.name == "Summer Trip")
+        #expect(journal.modifiedAt == .init(timeIntervalSince1970: 2))
+    }
+
+    @Test("The protected Unassigned journal cannot be renamed")
+    @MainActor
+    func renamingUnassignedJournalIsRejected() throws {
+        let setup = try makeSetup()
+        let unassigned = Journal(name: "Unassigned", isSystemUnassigned: true)
+        setup.context.insert(unassigned)
+        try setup.context.save()
+
+        #expect(throws: ListenHerePersistenceError.protectedJournal) {
+            try setup.repository.renameJournal(id: unassigned.id, name: "Elsewhere", at: Date())
+        }
+        #expect(unassigned.name == "Unassigned")
+    }
+
     @Test("Deleting a journal alone moves its memories to the selected journal")
     @MainActor
     func deletionMovesMemoriesToSelectedJournal() throws {

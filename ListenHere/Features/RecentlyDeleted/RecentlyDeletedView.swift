@@ -1,3 +1,4 @@
+// Renders deleted journals and memories with native recovery and permanent-deletion actions.
 import SwiftUI
 
 struct RecentlyDeletedView: View {

@@ -1,3 +1,5 @@
+// Defines stable theme identifiers, semantic palettes, backdrop treatments, and theme environment injection.
+
 import SwiftUI
 
 enum ThemeID: String, Codable, CaseIterable, Sendable {
@@ -72,7 +74,7 @@ struct AppTheme {
             destructive: Color(red: 1.00, green: 0.35, blue: 0.32),
             separator: Color.white.opacity(0.14)
         ),
-        lightBackdrop: .image(assetName: "PaperBackground", opacity: 0.72),
+        lightBackdrop: .image(assetName: "WatercolorPaper", opacity: 0.72),
         darkBackdrop: .solid
     )
 

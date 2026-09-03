@@ -1,3 +1,5 @@
+// Presents the native destination-journal selection step before deleting a non-empty journal.
+
 import SwiftUI
 
 struct MoveMemoriesBeforeDeletingView: View {

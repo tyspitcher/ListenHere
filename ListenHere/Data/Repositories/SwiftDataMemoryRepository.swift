@@ -1,9 +1,16 @@
+// Persists memories, resolves journal assignments, creates defaults, and manages active/deleted queries.
+
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 final class SwiftDataMemoryRepository: MemoryRepository {
     private let modelContext: ModelContext
+    private static let logger = Logger(
+        subsystem: "com.tysonpitcher.ListenHere",
+        category: "MemoryPersistence"
+    )
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -41,6 +48,7 @@ final class SwiftDataMemoryRepository: MemoryRepository {
     }
 
     func createMemory(from draft: MemoryDraft, origin: MemoryCreationOrigin) throws -> Memory {
+        Self.logger.debug("Memory persistence requested.")
         do {
             do {
                 try draft.validate()
@@ -57,9 +65,12 @@ final class SwiftDataMemoryRepository: MemoryRepository {
             }
 
             try modelContext.save()
+            Self.logger.debug("Memory persistence completed.")
             return memory
         } catch {
             modelContext.rollback()
+            // Metadata can include private text and locations, so errors remain intentionally generic.
+            Self.logger.error("Memory persistence failed.")
             throw error
         }
     }
@@ -70,14 +81,34 @@ final class SwiftDataMemoryRepository: MemoryRepository {
                 throw ListenHerePersistenceError.memoryNotFound
             }
 
-            let requestedJournals = try activeJournals(ids: journalIDs)
-            let assignments = requestedJournals.isEmpty ? [try unassignedJournal()] : requestedJournals
+            try replaceJournalAssignments(for: memory, with: journalIDs)
+            memory.modifiedAt = Date()
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
 
-            for journal in memory.journals ?? [] {
-                journal.remove(memory)
+    func updateMemoryContent(id: UUID, update: MemoryContentUpdate) throws {
+        do {
+            guard let memory = try fetchMemory(id: id), memory.isRecentlyDeleted == false else {
+                throw ListenHerePersistenceError.memoryNotFound
             }
-            for journal in assignments {
-                journal.add(memory)
+            guard update.photoFilename != nil || update.audioFilename != nil else {
+                throw ListenHerePersistenceError.invalidDraft(.missingMedia)
+            }
+
+            memory.title = Self.normalized(update.title)
+            memory.caption = Self.normalized(update.caption)
+            memory.capturedAt = update.capturedAt
+            memory.photoFilename = update.photoFilename
+            memory.audioFilename = update.audioFilename
+            memory.audioDurationSeconds = update.audioFilename == nil
+                ? nil
+                : update.audioDurationSeconds
+            if let journalIDs = update.journalIDs {
+                try replaceJournalAssignments(for: memory, with: journalIDs)
             }
             memory.modifiedAt = Date()
             try modelContext.save()
@@ -164,6 +195,11 @@ final class SwiftDataMemoryRepository: MemoryRepository {
         return memory
     }
 
+    private static func normalized(_ value: String?) -> String? {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+
     private func journalsForCreation(
         draft: MemoryDraft,
         origin: MemoryCreationOrigin
@@ -232,6 +268,25 @@ final class SwiftDataMemoryRepository: MemoryRepository {
         return ids.compactMap { activeByID[$0] }.sorted { $0.createdAt < $1.createdAt }
     }
 
+    private func replaceJournalAssignments(for memory: Memory, with journalIDs: Set<UUID>) throws {
+        let requested = try activeJournals(ids: journalIDs)
+        let userJournals = requested.filter { $0.isSystemUnassigned == false }
+        let assignments: [Journal]
+        if userJournals.isEmpty {
+            assignments = requested.isEmpty ? [try unassignedJournal()] : requested
+        } else {
+            // Unassigned is a recovery fallback, not a category to retain beside user journals.
+            assignments = userJournals
+        }
+
+        for journal in memory.journals ?? [] {
+            journal.remove(memory)
+        }
+        for journal in assignments {
+            journal.add(memory)
+        }
+    }
+
     private func fetchMemory(id: UUID) throws -> Memory? {
         try modelContext.fetch(
             FetchDescriptor<Memory>(predicate: #Predicate { $0.id == id })
@@ -252,8 +307,14 @@ final class SwiftDataMemoryRepository: MemoryRepository {
             capturedAt: memory.capturedAt,
             thumbnail: memory.photoFilename.map(MemorySummary.Thumbnail.managedFile),
             hasAudio: memory.audioFilename != nil,
+            audioFilename: memory.audioFilename,
             audioDurationSeconds: memory.audioDurationSeconds,
             locationName: memory.locationName,
+            journalIDs: Set(
+                (memory.journals ?? [])
+                    .filter { $0.isRecentlyDeleted == false }
+                    .map(\.id)
+            ),
             journalNames: (memory.journals ?? [])
                 .filter { $0.isRecentlyDeleted == false }
                 .map(\.name)

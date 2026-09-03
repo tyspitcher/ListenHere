@@ -1,6 +1,7 @@
+// Provides the Library hub that links to journals, places, and Recently Deleted.
 import SwiftUI
 
-struct MemoryAtlasView: View {
+struct LibraryView: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
 

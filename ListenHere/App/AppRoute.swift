@@ -1,3 +1,5 @@
+// Defines the stable value-based destinations used by the app's navigation stack.
+
 import Foundation
 
 enum AppRoute: Codable, Hashable, Sendable {

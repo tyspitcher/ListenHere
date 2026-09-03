@@ -1,3 +1,5 @@
+// Represents a deleted journal or memory in the 30-day Recently Deleted presentation.
+
 import Foundation
 
 struct RecentlyDeletedItem: Identifiable, Equatable, Sendable {

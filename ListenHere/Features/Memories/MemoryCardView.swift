@@ -1,3 +1,5 @@
+// Renders a reusable media-first card with memory title, caption, location, and audio metadata.
+
 import SwiftUI
 
 struct MemoryCardView: View {
@@ -5,6 +7,7 @@ struct MemoryCardView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let memory: MemorySummary
+    let managedPhotoURL: URL?
 
     var body: some View {
         let palette = theme.palette(for: colorScheme)
@@ -27,40 +30,48 @@ struct MemoryCardView: View {
                 metadata
             }
         }
-        .padding(14)
-        .background(palette.elevatedSurface, in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.10), radius: 10, y: 4)
-        .accessibilityElement(children: .combine)
+        // The card's media is sized from the available list width. Keep that width on the
+        // layout root as well, so LazyVStack measures the same bounds it visually renders.
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
     private var media: some View {
-        switch memory.thumbnail {
-        case .previewAsset(let name):
-            Image(name)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .aspectRatio(4 / 3, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .accessibilityHidden(true)
-        case .managedFile:
-            mediaPlaceholder(systemImage: "photo")
-        case nil:
-            mediaPlaceholder(systemImage: memory.hasAudio ? "waveform" : "photo")
-        }
-    }
-
-    private func mediaPlaceholder(systemImage: String) -> some View {
         let palette = theme.palette(for: colorScheme)
-        return ZStack {
-            palette.surface
-            Image(systemName: systemImage)
-                .font(.system(size: 42))
-                .foregroundStyle(palette.accent)
-        }
+        // The base establishes the card's finite size. Overlay content cannot enlarge
+        // that size, so even extremely wide panoramas remain inside the list row.
+        Color.clear
         .frame(maxWidth: .infinity)
         .aspectRatio(4 / 3, contentMode: .fit)
+        .background(palette.surface)
+        .overlay {
+            Group {
+                switch memory.thumbnail {
+                case .previewAsset(let name):
+                    Image(name)
+                        .resizable()
+                        .scaledToFill()
+                case .managedFile:
+                    if let managedPhotoURL {
+                        ManagedPhotoImageView(
+                            photoURL: managedPhotoURL,
+                            contentMode: .fill,
+                            maximumPixelSize: 700
+                        )
+                    } else {
+                        Image(systemName: "photo")
+                            .font(.system(size: 42))
+                            .foregroundStyle(palette.accent)
+                    }
+                case nil:
+                    Image(systemName: memory.hasAudio ? "waveform" : "photo")
+                        .font(.system(size: 42))
+                        .foregroundStyle(palette.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityHidden(true)
     }
@@ -95,4 +106,5 @@ struct MemoryCardView: View {
         let seconds = max(0, Int(duration.rounded()))
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
+
 }

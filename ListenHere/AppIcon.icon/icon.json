@@ -1,0 +1,72 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.97000,0.95060,0.91180,1.00000",
+      "display-p3:0.85980,0.84261,0.80821,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 1
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0
+      }
+    }
+  },
+  "groups" : [
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "blend-mode" : "overlay",
+          "image-name" : "heart-fill.png",
+          "name" : "heart-fill",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 0.9,
+            "translation-in-points" : [
+              -28.888888888888232,
+              26.66666666666606
+            ]
+          }
+        },
+        {
+          "blend-mode" : "overlay",
+          "image-name" : "heart-outline.png",
+          "name" : "heart-outline",
+          "position" : {
+            "scale" : 0.9,
+            "translation-in-points" : [
+              64.44444444444298,
+              0
+            ]
+          }
+        }
+      ],
+      "opacity" : 0.7,
+      "position" : {
+        "scale" : 0.45,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

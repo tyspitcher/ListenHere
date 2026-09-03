@@ -21,8 +21,8 @@ architectural or product decision changes.
   portfolio use
 
 The project is at an early feature stage. The template `Item` model and CRUD interface have
-been removed. All Memories is the app shell, and the domain, repository, preview, theme, and
-Recently Deleted foundations are in place.
+been removed. All Memories is the app shell, and the domain, repository, preview, theme,
+Recently Deleted, managed-media, and single-sheet capture composer foundations are in place.
 
 ## Canonical Project References
 
@@ -88,12 +88,25 @@ Core behavior and terminology:
 - An item's ellipsis action in Recently Deleted presents **Recover** and **Delete Permanently**.
   Recovery restores active journal assignments. If none of the original journals remain
   active, assign the memory to the protected system **Unassigned** journal.
-- The default creation path is photo first, followed by an invitation to record sound.
-- Support **Take Photo**, **Choose from Library**, and **Record Sound Only**.
+- Create a memory in one large modal composer that previews photo and sound in place beside
+  optional title and description fields. Save remains visible and is enabled only after at
+  least one medium has been added; metadata alone is not a savable memory.
+- Support **Take Photo**, **Choose from Library**, **Voice Recording**, and **Choose Audio File**
+  for sound-only memories. Voice Recording is an in-app AVFoundation flow; do not route the
+  user to Apple's separate Voice Memos app. Files selections must be copied into managed media
+  storage while the security-scoped URL is available.
+- Present photo and sound source choices from adaptive popovers in the composer. Keep camera
+  capture full screen through the system camera, while photo-library and Files selection use
+  their native pickers. Active recording remains inside the sound tile in the composer.
 - When permission is granted, use capture location and available photo metadata as helpful
   starting values. Location remains optional and editable, and denial must not block capture.
-- Restore and retain the **10 / 20 / 30 second recording-duration picker**.
-- Hide the duration picker after recording starts; show the countdown, waveform, and Stop.
+- Preserve distinct location candidates when photo metadata and the device location captured
+  during sound recording disagree. Memory editing must let the person choose either candidate
+  or place a pin manually on a map; the selected value becomes the memory's single canonical
+  location. Imported audio may not provide location metadata, so absence is expected and must
+  not block editing.
+- Show elapsed recording time and a live waveform in the sound tile. Recording may be stopped
+  manually at any time and automatically stops after five minutes, preserving the partial clip.
 - Audio never autoplays. The user deliberately presses Play.
 - A memory can be exported as a short video and shared through the system share sheet.
 - Vertical 9:16 is the default export for Reels and Shorts; square 1:1 is optional.
@@ -243,6 +256,11 @@ A view model should:
 Avoid god view models. Split a flow when a view model starts owning unrelated capture,
 editing, browsing, and export responsibilities.
 
+`CaptureViewModel` is intentionally limited to the temporary `MemoryDraft`, managed-media
+handoff, cleanup, and repository creation. Keep PhotosUI and UIKit camera presentation in
+narrow adapters, and keep recording, waveform analysis, playback, and editing in their own
+focused services or view models rather than expanding `CaptureViewModel` into a media pipeline.
+
 Likely feature view models include:
 
 - `AllMemoriesViewModel`
@@ -269,9 +287,8 @@ Prefer enums and small state structures over overlapping booleans:
 enum RecordingState: Equatable {
     case idle
     case requestingPermission
-    case ready(duration: RecordingDuration)
-    case recording(remaining: Duration, level: Double)
-    case reviewing(AudioClip)
+    case recording(elapsed: Duration, levels: [Double])
+    case finalizing
     case failed(RecordingError)
 }
 ```
@@ -315,11 +332,14 @@ ListenHere/
     ListenHereApp.swift
     AppContainer.swift
     AppRouter.swift
+    ContentView.swift
+    NavigationStateStore.swift
   Features/
     Memories/
       Views/
       ViewModels/
       ViewData/
+    Library/
     Journals/
     Places/
     Capture/
@@ -358,6 +378,10 @@ Prefer one primary type per file and name the file after that type.
 - Use **All Memories** as the initial and fallback launch destination and keep it distinct
   from `MemoryListView`, which is scoped to one journal. Later launches restore the last valid
   stable browsing path.
+- When a person opens Memory Detail from All Memories or a journal and then navigates back,
+  restore that source list to the same visible memory and approximate scroll offset. Keep scroll
+  position separately for All Memories and each journal while their browsing stacks remain alive;
+  this is transient presentation state and does not need to survive a new app launch.
 - Treat the Apple Journal app as the primary interaction reference for the entry list,
   journal switching, new-memory placement, and journal-assignment sheet while preserving
   ListenHere's own visual identity and photo-plus-ambient-sound purpose.
@@ -365,13 +389,15 @@ Prefer one primary type per file and name the file after that type.
 - Use the native confirmation dialog and a destination-selection sheet for journal deletion;
   do not replace this flow with a custom alert replica.
 - Present journal assignment from a memory's ellipsis menu as a sheet with multi-selection.
-- Use full-screen presentation for camera, active recording, and immersive media editors.
+- Use full-screen presentation for camera and immersive media editors. Active recording stays
+  visible in the Create Memory composer's sound tile.
 - As the number of flows grows, centralize app-level routing in `AppRouter`.
 - View models may decide *where* an intent leads; SwiftUI views or the router decide *how*
   it is presented.
 - View models must not reference `NavigationController`, `UIViewController`, or other
   presentation APIs.
-- Keep capture-flow navigation explicit so cancellation and draft recovery are testable.
+- The Create Memory composer has no internal navigation route. Keep its presentation state,
+  cancellation, and draft recovery explicit and testable.
 
 Use UIKit only where an Apple API lacks an adequate SwiftUI interface. Wrap UIKit narrowly
 in a representable or adapter and keep it outside the view model.
@@ -385,6 +411,14 @@ and relative media references.
   reason.
 - Store media in app-managed files and persist stable relative filenames, not absolute
   sandbox paths.
+- Copy imported or captured data through `ManagedMediaStoring`; it returns only an
+  app-controlled relative filename and prevents temporary or externally owned URLs from
+  becoming durable model references.
+- A capture session owns newly imported managed files until its repository save succeeds.
+  Explicit cancellation must remove those files before dismissal. Do not use a broad view
+  `onDisappear` callback for this cleanup: nested system pickers can temporarily cover a view.
+  When imported files exist, prevent interactive sheet dismissal and use explicit Cancel so
+  cleanup can report a recoverable failure.
 - Give every memory a stable UUID.
 - Keep original photo and audio files when supporting non-destructive editing.
 - Write files atomically where possible.

@@ -1,3 +1,5 @@
+// Holds temporary capture metadata, media references, journal selections, edit recipes, and validation rules.
+
 import Foundation
 
 struct MemoryDraft: Equatable, Sendable {

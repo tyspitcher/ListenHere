@@ -50,12 +50,14 @@ App shell
 |   |   |-- Journal Assignment sheet (ellipsis menu)
 |   |   |-- Edit Memory
 |   |   `-- Share Memory
-|   `-- Create Memory flow
-|       |-- Take Photo
-|       |-- Choose from Library
-|       |-- Record Sound Only
-|       |-- Record or Review Sound
-|       `-- Review and Save
+|   `-- New Memory composer sheet
+|       |-- Add Photo popover
+|       |   |-- Take Photo (full-screen system camera)
+|       |   `-- Choose from Library
+|       |-- Add Sound popover
+|       |   |-- Record Sound (in-place recording)
+|       |   `-- Choose Audio File from Files
+|       `-- In-place media preview, metadata, and Save
 `-- Library / Memory Atlas
     |-- Journals
     |   `-- MemoryListView (journal detail)
@@ -78,11 +80,15 @@ journal-assignment sheet.
   pickers over custom equivalents shown in the Figma exports.
 - Use `NavigationStack` with value-based destinations for pushed browsing routes.
 - Use a sheet for journal assignment and other short selection tasks.
-- Use full-screen presentation for camera capture, active audio recording, and immersive
-  media editing.
-- Keep capture-flow routing explicit so cancel, retry, and draft recovery can be tested.
+- Use full-screen presentation for camera capture and immersive media editing. Active audio
+  recording stays in the New Memory composer.
+- The composer has no internal route or review destination. Keep its media, recording,
+  cancellation, retry, and draft-recovery state explicit and testable.
 - Reuse memory-card and memory-row components between All Memories and journal detail, but
   keep the two screen responsibilities explicit.
+- Pushing Memory Detail and navigating back must preserve the source list position. Track All
+  Memories independently from each journal so returning from one memory does not reset another
+  list. This position is session-scoped UI state rather than durable navigation restoration.
 
 ## Domain Relationships
 
@@ -123,25 +129,33 @@ from mistaking empty files for implemented features.
 
 | Product responsibility | Canonical file or feature | Current status |
 | --- | --- | --- |
-| App composition and launch | `ListenHere/ListenHereApp.swift` | AppContainer, schema, maintenance, and live repositories wired |
-| App shell and root navigation | `ListenHere/ContentView.swift` | NavigationStack with validated path restoration |
+| App composition and launch | `ListenHere/App/ListenHereApp.swift` | Owns AppContainer in state, injects it at the environment boundary, and wires schema, maintenance, and live repositories |
+| App shell and root navigation | `ListenHere/App/ContentView.swift` | Reads AppContainer from the environment, builds feature view models through its factories, and hosts NavigationStack with validated path restoration |
 | All Memories | `ListenHere/Features/Memories/AllMemoriesView.swift` | Browsing slice implemented |
-| Library hub | `ListenHere/MemoryAtlasView.swift` | Journals, Places, and Recently Deleted routes implemented |
-| Journal collection list | `ListenHere/JournalsView.swift` | Active list and native two-stage deletion flow implemented |
-| Journal detail / filtered memories | `ListenHere/MemoryListView.swift` | Read-only filtered memories implemented |
+| Memory-list position restoration | `ListenHere/Features/Memories/AllMemoriesView.swift` and `ListenHere/Features/Journals/MemoryListView.swift` | Pending: returning from Memory Detail should restore the same visible memory and approximate scroll offset independently for All Memories and each journal |
+| Library hub | `ListenHere/Features/Library/LibraryView.swift` | Journals, Places, and Recently Deleted routes implemented |
+| Journal collection list | `ListenHere/Features/Journals/JournalsView.swift` | Active list and native two-stage deletion flow implemented |
+| Journal detail / filtered memories | `ListenHere/Features/Journals/MemoryListView.swift` | Filtered memories, per-memory Edit, Choose Journals, and soft-delete actions implemented |
 | Places map | `ListenHere/Features/Places/PlacesView.swift` | Empty state implemented; MapKit browsing pending |
-| Memory detail | `ListenHere/Features/Memories/MemoryDetailView.swift` | Read-only detail implemented; playback/edit/share pending |
-| Capture source selection | `ListenHere/Features/Capture/CaptureSourceSheet.swift` | Native source routing contract implemented; services pending |
-| Audio recording | `Features/Recording/AudioRecordingView.swift` | Missing |
-| Review before saving | `Features/Capture/MemoryReviewView.swift` | Missing |
-| Journal assignment sheet | `Features/Journals/JournalAssignmentView.swift` | Missing |
+| Memory detail | `ListenHere/Features/Memories/MemoryDetailView.swift` | Displays managed photos and deliberate local audio playback with elapsed time, and presents saved-memory editing; sharing remains pending |
+| Create Memory composer | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | One large sheet owns source popovers, in-place media previews, optional metadata, pinned Save, recording presentation, cancellation, and cleanup recovery; there is no capture navigation route |
+| Photo Library picker adapter | `ListenHere/Features/Capture/PhotoLibraryPicker.swift` | Native `PhotosPicker` loads the selected photo while its access is valid, then hands bytes to the capture flow; it stores no Photos reference |
+| Camera adapter | `ListenHere/Features/Capture/SystemCameraPicker.swift` | Native `UIImagePickerController` camera runs full screen, returns captured bytes to managed storage, and never writes into the user's Photos library |
+| Audio file picker | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | Native `fileImporter` reads a security-scoped audio URL and copies bytes into managed media; no external URL is persisted |
+| Capture state and persistence | `ListenHere/Features/Capture/CaptureViewModel.swift` | `MemoryDraft` metadata, managed-media ownership, import, cleanup, Save eligibility, and repository transfer are implemented without presentation routing |
+| Audio recording | `ListenHere/Features/Capture/VoiceRecordingViewModel.swift` and `ListenHere/Features/Capture/AVFoundationAudioRecordingService.swift` | In-place recording exposes elapsed time and normalized levels, stops manually or after five minutes, and preserves valid partial clips on interruption or backgrounding |
+| Composer media preview | `ListenHere/Features/Capture/CaptureMediaPreviewViewModel.swift` | Owns deliberate playback and asynchronous waveform loading for recorded or imported sound |
+| Waveform analysis | `ListenHere/Features/Capture/AVFoundationAudioWaveformAnalyzer.swift` | Decodes and downsamples managed audio off the main actor; playback remains available if analysis fails |
+| Journal assignment sheet | `ListenHere/Features/Journals/JournalAssignmentSheet.swift` | Native staged multi-selection is integrated into saved-memory editing and each active-memory ellipsis menu |
 | Recently Deleted | `ListenHere/Features/RecentlyDeleted/RecentlyDeletedView.swift` | Implemented and linked from Library |
-| Memory editing | `Features/MemoryEditor/` | Missing |
+| Memory editing | `ListenHere/Features/Memories/MemoryEditorSheet.swift` and `MemoryEditSessionViewModel.swift` | Photo/sound replacement or removal, metadata/date changes, and one-or-more journal assignments are implemented. Location-source selection and manual MapKit pin placement remain pending; the editor will choose one canonical memory location from optional photo metadata, sound-capture device location, or a manual pin |
 | Video export and sharing | `Features/Sharing/` | Missing |
 | Settings | `Features/Settings/SettingsView.swift` | Missing |
 | Memory model | `ListenHere/Domain/Models/Memory.swift` | Implemented with metadata, soft deletion, and journals |
 | Journal model | `ListenHere/Domain/Models/Journal.swift` | Implemented with default state, soft deletion, and memories |
 | Versioned SwiftData schema | `ListenHere/Data/Persistence/ListenHereSchema.swift` | Implemented as schema V1 |
+| Managed media storage | `ListenHere/Data/FileStorage/LocalManagedMediaStore.swift` | Private, type-specific media import and safe deletion implemented; Photo Library capture uses it |
+| Audio playback service | `ListenHere/Features/Memories/AVFoundationAudioPlaybackService.swift` | AVFoundation-backed local playback is isolated behind a testable service for Memory Detail |
 | Memory repository | `ListenHere/Data/Repositories/SwiftDataMemoryRepository.swift` | Active queries, validated creation, assignment, and soft deletion implemented |
 | Journal repository | `ListenHere/Data/Repositories/SwiftDataJournalRepository.swift` | Atomic destination move, default, and deletion-batch rules implemented |
 | Theme boundary | `ListenHere/DesignSystem/AppTheme.swift` | Semantic light/dark theme implemented |
@@ -151,9 +165,22 @@ Paths under `Features/` describe the intended feature-first destination from `AG
 Do not create all missing files speculatively. Create or move a file only as part of a complete
 feature change, then update this table with its actual path and status.
 
-The `*ViewController.swift` placeholder files do not establish a UIKit architecture. New UI
-should remain SwiftUI-first, and UIKit should be wrapped narrowly only where an Apple API
-requires it.
+UIKit interop is limited to the system camera adapter where SwiftUI has no equivalent. New UI
+should remain SwiftUI-first, and any additional UIKit interop must be wrapped narrowly where an
+Apple API requires it.
+
+### Managed Media Contract
+
+`ManagedMediaStoring` is the sole boundary for copying imported photo, audio, or future
+exported-video bytes into ListenHere's private media directory. It returns a type-specific,
+app-controlled relative filename; a `MemoryDraft` and SwiftData model must never retain an
+external Photos URL, camera temporary URL, or absolute sandbox path. Capture and import flows
+use this contract before creating or updating persistent memory metadata.
+
+`CaptureViewModel` tracks files imported for its in-progress draft. It releases that ownership
+only after a successful repository save; explicit cancellation deletes the tracked files first.
+Avoid tying cleanup to a generic SwiftUI `onDisappear`, because a nested system picker can cover
+the capture UI without ending the flow.
 
 ## Open Product Decisions
 

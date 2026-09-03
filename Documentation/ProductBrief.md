@@ -82,6 +82,9 @@ clearly separating map rendering and selection from device-location authorizatio
 
 - PhotosUI and Photos: choose an existing image and use available capture-date or location
   metadata as editable starting values
+- Core Location and MapKit: retain an optional device-location candidate when sound is recorded,
+  let people choose between photo and recording candidates when both exist, and support manual
+  map-pin placement as the final editable memory location
 - SwiftData: persist memory metadata, journal relationships, and managed-media references
 - Core Image: optional non-destructive photo filters after the core experience is stable
 - CloudKit: future private synchronization after local-first behavior is reliable

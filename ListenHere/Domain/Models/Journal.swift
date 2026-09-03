@@ -1,3 +1,5 @@
+// Defines the SwiftData journal model, memory relationship, default state, and soft deletion lifecycle.
+
 import Foundation
 import SwiftData
 

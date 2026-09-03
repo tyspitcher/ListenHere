@@ -1,7 +1,9 @@
+// Declares the versioned SwiftData schema and migration plan used by ListenHere.
+
 import SwiftData
 
 enum ListenHereSchemaV1: VersionedSchema {
-    static var versionIdentifier = Schema.Version(1, 0, 0)
+    static let versionIdentifier = Schema.Version(1, 0, 0)
 
     static var models: [any PersistentModel.Type] {
         [

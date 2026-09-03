@@ -1,3 +1,4 @@
+// Supplies deterministic preview memories, in-memory repositories, SwiftData fixtures, and no-I/O media doubles.
 #if DEBUG
 import Foundation
 import SwiftData
@@ -15,6 +16,7 @@ enum PreviewFixtures {
             capturedAt: Date(timeIntervalSince1970: 1_695_945_600),
             thumbnail: .previewAsset("ForestMemory"),
             hasAudio: true,
+            audioFilename: "preview/forest.m4a",
             audioDurationSeconds: 22,
             locationName: "Mount Rainier, WA",
             journalNames: ["Nature Sounds", "Everyday"]
@@ -26,6 +28,7 @@ enum PreviewFixtures {
             capturedAt: Date(timeIntervalSince1970: 1_689_724_800),
             thumbnail: .previewAsset("BeachMemory"),
             hasAudio: false,
+            audioFilename: nil,
             audioDurationSeconds: nil,
             locationName: "Portland, ME",
             journalNames: ["Daily Fragments"]
@@ -37,6 +40,7 @@ enum PreviewFixtures {
             capturedAt: Date(timeIntervalSince1970: 1_686_441_600),
             thumbnail: nil,
             hasAudio: true,
+            audioFilename: "preview/rain.m4a",
             audioDurationSeconds: 30,
             locationName: nil,
             journalNames: ["Everyday"]
@@ -153,6 +157,10 @@ final class ConfigurablePreviewJournalRepository: JournalRepository {
         throw PreviewRepositoryError.readOnly
     }
 
+    func renameJournal(id: UUID, name: String, at date: Date) throws {
+        throw PreviewRepositoryError.readOnly
+    }
+
     func setDefaultJournal(id: UUID, at date: Date) throws {
         throw PreviewRepositoryError.readOnly
     }
@@ -169,5 +177,71 @@ final class ConfigurablePreviewJournalRepository: JournalRepository {
 enum PreviewRepositoryError: Error {
     case readOnly
     case requestedFailure
+}
+
+/// A preview-only media boundary keeps previews from creating app-managed files.
+@MainActor
+final class PreviewManagedMediaStore: ManagedMediaDeleting, ManagedMediaReading, ManagedMediaStoring {
+    func store(
+        _ data: Data,
+        as kind: ManagedMediaKind,
+        preferredFileExtension: String
+    ) throws -> ManagedMediaFile {
+        throw PreviewRepositoryError.readOnly
+    }
+
+    func deleteManagedFiles(named filenames: Set<String>) throws {}
+
+    func fileURL(for filename: String) throws -> URL {
+        throw PreviewRepositoryError.readOnly
+    }
+}
+
+@MainActor
+final class PreviewAudioRecordingService: AudioRecordingServicing {
+    let events = AsyncStream<AudioRecordingServiceEvent> { $0.finish() }
+
+    func requestPermission() async -> Bool { false }
+
+    func start() async throws {
+        throw PreviewRepositoryError.readOnly
+    }
+
+    func stop() async throws -> AudioRecording {
+        throw PreviewRepositoryError.readOnly
+    }
+
+    func cancel() async {}
+    func normalizedMeterLevel() -> Double { 0 }
+}
+
+@MainActor
+final class PreviewCameraAuthorizationService: CameraAuthorizationServicing {
+    func authorizationStatus() -> CameraAuthorizationStatus { .unavailable }
+    func requestAccess() async -> Bool { false }
+}
+
+struct PreviewAudioWaveformAnalyzer: AudioWaveformAnalyzing {
+    nonisolated func samples(for url: URL, targetCount: Int) async throws -> [Double] {
+        Array(repeating: 0.35, count: targetCount)
+    }
+}
+
+@MainActor
+final class PreviewAudioPlaybackService: AudioPlaybackServicing {
+    var currentTime: TimeInterval { 0 }
+    var duration: TimeInterval { 0 }
+    var isPlaying: Bool { false }
+
+    func loadAudio(at url: URL) async throws {
+        throw PreviewRepositoryError.readOnly
+    }
+
+    func play() throws {
+        throw PreviewRepositoryError.readOnly
+    }
+
+    func pause() {}
+    func stop() async {}
 }
 #endif

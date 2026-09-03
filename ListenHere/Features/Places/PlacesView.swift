@@ -1,3 +1,4 @@
+// Provides the Places browsing entry point and its current empty-state presentation.
 import SwiftUI
 
 struct PlacesView: View {

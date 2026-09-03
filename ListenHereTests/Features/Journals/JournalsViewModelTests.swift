@@ -81,6 +81,44 @@ struct JournalsViewModelTests {
         #expect(viewModel.errorMessage == "Choose another journal before continuing.")
     }
 
+    @Test("Creating a journal reloads the collection")
+    func createsJournal() async {
+        let repository = JournalRepositoryStub(journals: [])
+        let viewModel = JournalsViewModel(repository: repository)
+        viewModel.requestJournalCreation()
+
+        let succeeded = await viewModel.saveJournalName("Everyday")
+
+        #expect(succeeded)
+        #expect(repository.createdNames == ["Everyday"])
+        #expect(viewModel.nameEditor == nil)
+        #expect(viewModel.state == .loaded(repository.journals))
+    }
+
+    @Test("Renaming a journal persists the trimmed name and reloads the collection")
+    func renamesJournal() async {
+        let journal = makeJournal(name: "Trip")
+        let repository = JournalRepositoryStub(journals: [journal])
+        let viewModel = JournalsViewModel(repository: repository)
+        viewModel.requestRename(of: journal)
+
+        let succeeded = await viewModel.saveJournalName("  Summer Trip  ")
+
+        #expect(succeeded)
+        #expect(repository.renamedJournals == [.init(id: journal.id, name: "Summer Trip")])
+        #expect(repository.journals.first?.name == "Summer Trip")
+    }
+
+    @Test("The protected Unassigned journal cannot be renamed")
+    func rejectsRenamingUnassignedJournal() {
+        let unassigned = makeJournal(name: "Unassigned", isSystemUnassigned: true)
+        let viewModel = JournalsViewModel(repository: JournalRepositoryStub(journals: [unassigned]))
+
+        viewModel.requestRename(of: unassigned)
+
+        #expect(viewModel.nameEditor == nil)
+    }
+
     private func makeJournal(
         name: String,
         memoryCount: Int = 0,
@@ -106,6 +144,13 @@ private final class JournalRepositoryStub: JournalRepository {
 
     var journals: [JournalSummary]
     private(set) var deletionRequests: [DeletionRequest] = []
+    private(set) var createdNames: [String] = []
+    private(set) var renamedJournals: [RenameRequest] = []
+
+    struct RenameRequest: Equatable {
+        let id: UUID
+        let name: String
+    }
 
     init(journals: [JournalSummary]) {
         self.journals = journals
@@ -116,7 +161,32 @@ private final class JournalRepositoryStub: JournalRepository {
     }
 
     func createJournal(name: String, at date: Date) throws -> Journal {
-        throw JournalRepositoryStubError.unavailable
+        let journal = Journal(name: name, createdAt: date, modifiedAt: date)
+        createdNames.append(name)
+        journals.append(
+            JournalSummary(
+                id: journal.id,
+                name: name,
+                memoryCount: 0,
+                isDefault: journals.isEmpty,
+                isSystemUnassigned: false
+            )
+        )
+        return journal
+    }
+
+    func renameJournal(id: UUID, name: String, at date: Date) throws {
+        guard let index = journals.firstIndex(where: { $0.id == id }) else {
+            throw JournalRepositoryStubError.unavailable
+        }
+        renamedJournals.append(.init(id: id, name: name))
+        journals[index] = JournalSummary(
+            id: journals[index].id,
+            name: name,
+            memoryCount: journals[index].memoryCount,
+            isDefault: journals[index].isDefault,
+            isSystemUnassigned: journals[index].isSystemUnassigned
+        )
     }
 
     func setDefaultJournal(id: UUID, at date: Date) throws {

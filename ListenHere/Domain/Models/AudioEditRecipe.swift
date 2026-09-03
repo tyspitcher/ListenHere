@@ -1,3 +1,5 @@
+// Stores the non-destructive audio trim, looping, and crossfade recipe for a memory.
+
 import Foundation
 import SwiftData
 
