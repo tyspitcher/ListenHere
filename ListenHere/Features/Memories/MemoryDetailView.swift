@@ -5,13 +5,16 @@ struct MemoryDetailView: View {
     @State private var viewModel: MemoryDetailViewModel
     @State private var editSession: MemoryEditSessionViewModel?
     private let makeVoiceRecordingViewModel: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+    private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     init(
         viewModel: MemoryDetailViewModel,
-        makeVoiceRecordingViewModel: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+        makeVoiceRecordingViewModel: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel,
+        makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory
     ) {
         _viewModel = State(wrappedValue: viewModel)
         self.makeVoiceRecordingViewModel = makeVoiceRecordingViewModel
+        self.makeLocationPickerViewModel = makeLocationPickerViewModel
     }
 
     var body: some View {
@@ -34,6 +37,7 @@ struct MemoryDetailView: View {
                 ProgressView("Loading Memory")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -48,7 +52,8 @@ struct MemoryDetailView: View {
         .sheet(item: $editSession) { session in
             MemoryEditorSheet(
                 session: session,
-                recordingViewModel: makeVoiceRecordingViewModel(session)
+                recordingViewModel: makeVoiceRecordingViewModel(session),
+                makeLocationPickerViewModel: makeLocationPickerViewModel
             ) {
                 await viewModel.load()
             }

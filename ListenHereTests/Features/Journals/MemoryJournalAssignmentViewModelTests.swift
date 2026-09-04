@@ -46,6 +46,24 @@ struct MemoryJournalAssignmentViewModelTests {
         #expect(memoryRepository.updatedJournalIDs == [firstJournal.id, secondJournal.id])
     }
 
+    @Test("Creating a journal makes it available for immediate assignment")
+    @MainActor
+    func createJournalRefreshesChoices() async {
+        let existingJournal = makeJournal(name: "Family")
+        let repository = JournalRepositoryStub(journals: [existingJournal])
+        let viewModel = MemoryJournalAssignmentViewModel(
+            memory: makeMemory(journalID: existingJournal.id),
+            memoryRepository: MemoryRepositoryStub(),
+            journalRepository: repository
+        )
+        await viewModel.load()
+
+        let created = await viewModel.createJournal("Weekend Walks")
+
+        #expect(created?.name == "Weekend Walks")
+        #expect(viewModel.journals.contains { $0.id == created?.id })
+    }
+
     private func makeMemory(journalID: UUID) -> MemorySummary {
         MemorySummary(
             id: UUID(),
@@ -90,7 +108,7 @@ private final class MemoryRepositoryStub: MemoryRepository {
 
 @MainActor
 private final class JournalRepositoryStub: JournalRepository {
-    let journals: [JournalSummary]
+    private(set) var journals: [JournalSummary]
 
     init(journals: [JournalSummary]) {
         self.journals = journals
@@ -98,7 +116,17 @@ private final class JournalRepositoryStub: JournalRepository {
 
     func fetchActiveJournals() async throws -> [JournalSummary] { journals }
     func createJournal(name: String, at date: Date) throws -> Journal {
-        throw MemoryAssignmentTestError.unavailable
+        let journal = Journal(name: name, createdAt: date, modifiedAt: date)
+        journals.append(
+            JournalSummary(
+                id: journal.id,
+                name: journal.name,
+                memoryCount: 0,
+                isDefault: journal.isDefault,
+                isSystemUnassigned: journal.isSystemUnassigned
+            )
+        )
+        return journal
     }
     func renameJournal(id: UUID, name: String, at date: Date) throws {
         throw MemoryAssignmentTestError.unavailable

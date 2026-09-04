@@ -110,8 +110,58 @@ final class SwiftDataMemoryRepository: MemoryRepository {
             if let journalIDs = update.journalIDs {
                 try replaceJournalAssignments(for: memory, with: journalIDs)
             }
+            if update.shouldUpdateLocation {
+                if let location = update.location {
+                    guard location.isValid else {
+                        throw ListenHerePersistenceError.invalidDraft(.invalidLocation)
+                    }
+                    memory.setLocation(location)
+                } else {
+                    memory.clearLocation()
+                }
+            }
+            if let locationCandidates = update.locationCandidates {
+                guard locationCandidates.allSatisfy({ $0.location.isValid }) else {
+                    throw ListenHerePersistenceError.invalidDraft(.invalidLocation)
+                }
+                memory.locationCandidates = locationCandidates
+            }
             memory.modifiedAt = Date()
             try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
+
+    func persistResolvedLocationName(memoryID: UUID, location: MemoryLocation) throws -> Bool {
+        guard let name = location.normalizedName else { return false }
+
+        do {
+            guard let memory = try fetchMemory(id: memoryID), memory.isRecentlyDeleted == false,
+                  let currentLocation = memory.location,
+                  currentLocation.representsSamePlace(as: location),
+                  currentLocation.normalizedName == nil else {
+                return false
+            }
+
+            let namedLocation = MemoryLocation(
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                name: name,
+                source: currentLocation.source
+            )
+            memory.setLocation(namedLocation)
+            memory.locationCandidates = memory.locationCandidates.map { candidate in
+                guard candidate.location.representsSamePlace(as: currentLocation),
+                      candidate.location.normalizedName == nil else {
+                    return candidate
+                }
+                return MemoryLocationCandidate(location: namedLocation)
+            }
+            memory.modifiedAt = Date()
+            try modelContext.save()
+            return true
         } catch {
             modelContext.rollback()
             throw error
@@ -145,13 +195,8 @@ final class SwiftDataMemoryRepository: MemoryRepository {
             audioDurationSeconds: draft.audioDurationSeconds
         )
 
-        if let location = draft.location {
-            memory.setLocation(
-                latitude: location.latitude,
-                longitude: location.longitude,
-                name: location.name
-            )
-        }
+        if let location = draft.location { memory.setLocation(location) }
+        memory.locationCandidates = draft.locationCandidates
 
         if let edits = draft.photoEdits {
             memory.photoEditRecipe = PhotoEditRecipe(
@@ -310,6 +355,8 @@ final class SwiftDataMemoryRepository: MemoryRepository {
             audioFilename: memory.audioFilename,
             audioDurationSeconds: memory.audioDurationSeconds,
             locationName: memory.locationName,
+            location: memory.location,
+            locationCandidates: memory.locationCandidates,
             journalIDs: Set(
                 (memory.journals ?? [])
                     .filter { $0.isRecentlyDeleted == false }

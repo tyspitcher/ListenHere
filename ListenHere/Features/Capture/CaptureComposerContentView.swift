@@ -20,6 +20,7 @@ struct CaptureComposerContentView: View {
     let chooseAudioFile: () -> Void
     let removePhoto: () -> Void
     let removeAudio: () -> Void
+    let chooseLocation: () -> Void
     let save: () -> Void
 
     var body: some View {
@@ -56,6 +57,12 @@ struct CaptureComposerContentView: View {
                     title: $title,
                     description: $description,
                     isEnabled: editorIsEnabled
+                )
+
+                CaptureLocationField(
+                    location: captureViewModel.draft.location,
+                    isEnabled: editorIsEnabled,
+                    chooseLocation: chooseLocation
                 )
             }
             .padding()

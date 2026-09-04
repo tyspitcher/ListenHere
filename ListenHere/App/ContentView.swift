@@ -36,12 +36,14 @@ struct ContentView: View {
                 makeMemoryJournalAssignmentViewModel: container.makeMemoryJournalAssignmentViewModel,
                 makeVoiceRecordingViewModelForEditing: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
-                }
+                },
+                makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )
             .navigationDestination(for: AppRoute.self) { route in
                 destination(for: route)
             }
         }
+        .appScreenBackground()
         .appTheme(activeTheme)
         .task { await router.restorePathIfNeeded() }
     }
@@ -75,10 +77,14 @@ struct ContentView: View {
                 makeMemoryJournalAssignmentViewModel: container.makeMemoryJournalAssignmentViewModel,
                 makeVoiceRecordingViewModelForEditing: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
-                }
+                },
+                makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )
         case .places:
-            PlacesView()
+            PlacesView(
+                viewModel: container.makePlacesViewModel(),
+                openMemory: { container.router.push(.memory($0)) }
+            )
         case .recentlyDeleted:
             RecentlyDeletedView(viewModel: container.makeRecentlyDeletedViewModel())
         case .memory(let id):
@@ -86,7 +92,8 @@ struct ContentView: View {
                 viewModel: container.makeMemoryDetailViewModel(memoryID: id),
                 makeVoiceRecordingViewModel: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
-                }
+                },
+                makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )
         }
     }

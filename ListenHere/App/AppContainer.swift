@@ -18,6 +18,8 @@ final class AppContainer {
     private let audioPlaybackServiceFactory: @MainActor () -> any AudioPlaybackServicing
     private let cameraAuthorizationServiceFactory: @MainActor () -> any CameraAuthorizationServicing
     private let waveformAnalyzerFactory: @MainActor () -> any AudioWaveformAnalyzing
+    private let currentLocationProviderFactory: @MainActor () -> any CurrentLocationProviding
+    private let locationNameResolverFactory: @MainActor () -> any LocationNameResolving
 
     init(
         memoryRepository: any MemoryRepository,
@@ -36,6 +38,12 @@ final class AppContainer {
         },
         waveformAnalyzerFactory: @escaping @MainActor () -> any AudioWaveformAnalyzing = {
             AVFoundationAudioWaveformAnalyzer()
+        },
+        currentLocationProviderFactory: @escaping @MainActor () -> any CurrentLocationProviding = {
+            CoreLocationCurrentLocationProvider()
+        },
+        locationNameResolverFactory: @escaping @MainActor () -> any LocationNameResolving = {
+            MapKitLocationNameResolver()
         }
     ) {
         self.memoryRepository = memoryRepository
@@ -46,9 +54,15 @@ final class AppContainer {
         self.audioPlaybackServiceFactory = audioPlaybackServiceFactory
         self.cameraAuthorizationServiceFactory = cameraAuthorizationServiceFactory
         self.waveformAnalyzerFactory = waveformAnalyzerFactory
+        self.currentLocationProviderFactory = currentLocationProviderFactory
+        self.locationNameResolverFactory = locationNameResolverFactory
         allMemoriesViewModel = AllMemoriesViewModel(
             repository: memoryRepository,
-            mediaReader: mediaStore
+            mediaReader: mediaStore,
+            locationNameBackfiller: MemoryLocationNameBackfillService(
+                repository: memoryRepository,
+                locationNameResolver: locationNameResolverFactory()
+            )
         )
         router = AppRouter(
             stateStore: navigationStateStore ?? UserDefaultsNavigationStateStore(),
@@ -61,7 +75,10 @@ final class AppContainer {
         CaptureViewModel(
             origin: origin,
             memoryRepository: memoryRepository,
-            mediaStore: mediaStore
+            mediaStore: mediaStore,
+            photoLocationExtractor: ImageIOPhotoLocationExtractor(),
+            currentLocationProvider: currentLocationProviderFactory(),
+            locationNameResolver: locationNameResolverFactory()
         )
     }
 
@@ -69,11 +86,33 @@ final class AppContainer {
         JournalsViewModel(repository: journalRepository)
     }
 
+    func makePlacesViewModel() -> PlacesViewModel {
+        PlacesViewModel(
+            repository: memoryRepository,
+            mediaReader: mediaStore,
+            locationNameBackfiller: makeLocationNameBackfiller()
+        )
+    }
+
+    func makeLocationPickerViewModel(
+        candidates: [MemoryLocationCandidate],
+        initialLocation: MemoryLocation?
+    ) -> LocationPickerViewModel {
+        LocationPickerViewModel(
+            candidates: candidates,
+            initialLocation: initialLocation,
+            currentLocationProvider: currentLocationProviderFactory(),
+            locationNameResolver: locationNameResolverFactory()
+        )
+    }
+
     func makeJournalDetailViewModel(journalID: UUID) -> JournalDetailViewModel {
         JournalDetailViewModel(
             journalID: journalID,
             repository: memoryRepository,
-            mediaReader: mediaStore
+            journalRepository: journalRepository,
+            mediaReader: mediaStore,
+            locationNameBackfiller: makeLocationNameBackfiller()
         )
     }
 
@@ -88,7 +127,8 @@ final class AppContainer {
             journalRepository: journalRepository,
             mediaStore: mediaStore,
             mediaEditor: mediaStore,
-            audioPlaybackService: audioPlaybackServiceFactory()
+            audioPlaybackService: audioPlaybackServiceFactory(),
+            locationNameBackfiller: makeLocationNameBackfiller()
         )
     }
 
@@ -151,5 +191,12 @@ final class AppContainer {
 
     func makeCameraCaptureViewModel() -> CameraCaptureViewModel {
         CameraCaptureViewModel(authorizationService: cameraAuthorizationServiceFactory())
+    }
+
+    private func makeLocationNameBackfiller() -> MemoryLocationNameBackfillService {
+        MemoryLocationNameBackfillService(
+            repository: memoryRepository,
+            locationNameResolver: locationNameResolverFactory()
+        )
     }
 }

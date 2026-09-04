@@ -17,19 +17,24 @@ final class AllMemoriesViewModel {
 
     private let repository: any MemoryRepository
     private let mediaReader: (any ManagedMediaReading)?
+    private let locationNameBackfiller: (any MemoryLocationNameBackfilling)?
     private var loadTask: Task<Void, Never>?
+    private var locationNameBackfillTask: Task<Void, Never>?
     private var managedPhotoURLs: [MemorySummary.ID: URL] = [:]
 
     init(
         repository: any MemoryRepository,
-        mediaReader: (any ManagedMediaReading)? = nil
+        mediaReader: (any ManagedMediaReading)? = nil,
+        locationNameBackfiller: (any MemoryLocationNameBackfilling)? = nil
     ) {
         self.repository = repository
         self.mediaReader = mediaReader
+        self.locationNameBackfiller = locationNameBackfiller
     }
 
     func load() {
         loadTask?.cancel()
+        locationNameBackfillTask?.cancel()
         state = .loading
 
         let repository = repository
@@ -40,6 +45,7 @@ final class AllMemoriesViewModel {
                 guard let self else { return }
                 managedPhotoURLs = resolveManagedPhotoURLs(in: memories)
                 state = .loaded(memories)
+                startLocationNameBackfill(for: memories)
             } catch is CancellationError {
                 return
             } catch {
@@ -73,5 +79,24 @@ final class AllMemoriesViewModel {
                 return (memory.id, url)
             }
         )
+    }
+
+    private func startLocationNameBackfill(for memories: [MemorySummary]) {
+        guard let locationNameBackfiller,
+              memories.contains(where: { $0.location?.normalizedName == nil }) else {
+            return
+        }
+
+        let expectedIDs = memories.map(\.id)
+        locationNameBackfillTask = Task { [weak self] in
+            let namedMemories = await locationNameBackfiller.resolveMissingNames(in: memories)
+            guard Task.isCancelled == false,
+                  let self,
+                  case .loaded(let currentMemories) = state,
+                  currentMemories.map(\.id) == expectedIDs else {
+                return
+            }
+            state = .loaded(namedMemories)
+        }
     }
 }

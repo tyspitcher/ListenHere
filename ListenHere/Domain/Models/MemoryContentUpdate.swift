@@ -10,6 +10,9 @@ struct MemoryContentUpdate: Equatable, Sendable {
     let audioFilename: String?
     let audioDurationSeconds: Double?
     let journalIDs: Set<UUID>?
+    let location: MemoryLocation?
+    let shouldUpdateLocation: Bool
+    let locationCandidates: [MemoryLocationCandidate]?
 
     init(
         title: String?,
@@ -18,7 +21,10 @@ struct MemoryContentUpdate: Equatable, Sendable {
         photoFilename: String?,
         audioFilename: String?,
         audioDurationSeconds: Double?,
-        journalIDs: Set<UUID>? = nil
+        journalIDs: Set<UUID>? = nil,
+        location: MemoryLocation? = nil,
+        shouldUpdateLocation: Bool = false,
+        locationCandidates: [MemoryLocationCandidate]? = nil
     ) {
         self.title = title
         self.caption = caption
@@ -27,5 +33,8 @@ struct MemoryContentUpdate: Equatable, Sendable {
         self.audioFilename = audioFilename
         self.audioDurationSeconds = audioDurationSeconds
         self.journalIDs = journalIDs
+        self.location = location
+        self.shouldUpdateLocation = shouldUpdateLocation
+        self.locationCandidates = locationCandidates
     }
 }

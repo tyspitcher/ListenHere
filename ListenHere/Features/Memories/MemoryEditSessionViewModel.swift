@@ -19,6 +19,8 @@ final class MemoryEditSessionViewModel: Identifiable {
     var title: String
     var caption: String
     var capturedAt: Date
+    private(set) var location: MemoryLocation?
+    private(set) var locationCandidates: [MemoryLocationCandidate]
     private(set) var photoFilename: String?
     private(set) var photoURL: URL?
     private(set) var audioFilename: String?
@@ -50,6 +52,7 @@ final class MemoryEditSessionViewModel: Identifiable {
     private var stagedFilenames: Set<String> = []
     private let originalJournalNames: [String]
     private var journalSelectionWasEdited = false
+    private var locationWasEdited = false
 
     init(
         memory: MemorySummary,
@@ -61,6 +64,8 @@ final class MemoryEditSessionViewModel: Identifiable {
         title = memory.title == "Untitled Memory" ? "" : memory.title
         caption = memory.caption ?? ""
         capturedAt = memory.capturedAt
+        location = memory.location
+        locationCandidates = memory.locationCandidates
         if case .managedFile(let filename) = memory.thumbnail {
             photoFilename = filename
             originalPhotoFilename = filename
@@ -105,6 +110,33 @@ final class MemoryEditSessionViewModel: Identifiable {
         guard journalIDs.isSubset(of: selectableIDs) else { return }
         selectedJournalIDs = journalIDs
         journalSelectionWasEdited = true
+    }
+
+    func createJournal(_ rawName: String) async -> JournalSummary? {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let journalRepository, name.isEmpty == false else { return nil }
+
+        do {
+            let created = try journalRepository.createJournal(name: name, at: Date())
+            availableJournals = try await journalRepository.fetchActiveJournals()
+                .filter { $0.isSystemUnassigned == false }
+            return availableJournals.first(where: { $0.id == created.id })
+        } catch is CancellationError {
+            return nil
+        } catch {
+            return nil
+        }
+    }
+
+    func updateLocation(_ location: MemoryLocation?) {
+        self.location = location
+        if let location {
+            let candidate = MemoryLocationCandidate(location: location)
+            if locationCandidates.contains(candidate) == false {
+                locationCandidates.append(candidate)
+            }
+        }
+        locationWasEdited = true
     }
 
     func replacePhoto(_ data: Data, fileExtension: String) {
@@ -164,7 +196,10 @@ final class MemoryEditSessionViewModel: Identifiable {
                     photoFilename: photoFilename,
                     audioFilename: audioFilename,
                     audioDurationSeconds: audioDurationSeconds,
-                    journalIDs: journalSelectionWasEdited ? selectedJournalIDs : nil
+                    journalIDs: journalSelectionWasEdited ? selectedJournalIDs : nil,
+                    location: location,
+                    shouldUpdateLocation: locationWasEdited,
+                    locationCandidates: locationWasEdited ? locationCandidates : nil
                 )
             )
             stagedFilenames.removeAll()

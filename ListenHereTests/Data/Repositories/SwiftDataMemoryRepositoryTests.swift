@@ -147,6 +147,44 @@ struct SwiftDataMemoryRepositoryTests {
         #expect(memory.audioDurationSeconds == 12)
     }
 
+    @Test("Location candidates and a canonical manual pin persist together")
+    @MainActor
+    func locationCandidatesPersist() throws {
+        let setup = try makeSetup()
+        let photoLocation = MemoryLocation(latitude: 47.6062, longitude: -122.3321, source: .photoMetadata)
+        let deviceLocation = MemoryLocation(latitude: 47.6097, longitude: -122.3331, source: .deviceCapture)
+        var draft = MemoryDraft(photoFilename: "photos/forest.heic")
+        draft.location = photoLocation
+        draft.locationCandidates = [
+            .init(location: photoLocation),
+            .init(location: deviceLocation),
+        ]
+
+        let memory = try setup.repository.createMemory(from: draft, origin: .allMemories)
+        let manualLocation = MemoryLocation(latitude: 40.7608, longitude: -111.8910, source: .manualPin)
+        try setup.repository.updateMemoryContent(
+            id: memory.id,
+            update: MemoryContentUpdate(
+                title: memory.title,
+                caption: memory.caption,
+                capturedAt: memory.capturedAt,
+                photoFilename: memory.photoFilename,
+                audioFilename: memory.audioFilename,
+                audioDurationSeconds: memory.audioDurationSeconds,
+                location: manualLocation,
+                shouldUpdateLocation: true,
+                locationCandidates: [
+                    .init(location: photoLocation),
+                    .init(location: deviceLocation),
+                    .init(location: manualLocation),
+                ]
+            )
+        )
+
+        #expect(memory.location == manualLocation)
+        #expect(memory.locationCandidates.map(\.location) == [photoLocation, deviceLocation, manualLocation])
+    }
+
     @Test("Updating saved content replaces journal assignments in the same snapshot")
     @MainActor
     func updateContentReplacesJournalAssignments() async throws {

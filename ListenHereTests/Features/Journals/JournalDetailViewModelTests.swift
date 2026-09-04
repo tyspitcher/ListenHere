@@ -29,6 +29,28 @@ struct JournalDetailViewModelTests {
 
         #expect(viewModel.managedPhotoURL(for: memory) == URL(filePath: "/in-memory/\(file.filename)"))
     }
+
+    @Test("Loading a journal resolves its current name for the navigation title")
+    func loadResolvesJournalTitle() async {
+        let journalID = UUID()
+        let viewModel = JournalDetailViewModel(
+            journalID: journalID,
+            repository: JournalMemoryRepositoryStub(memories: []),
+            journalRepository: JournalRepositoryStub(journals: [
+                JournalSummary(
+                    id: journalID,
+                    name: "Weekend Walks",
+                    memoryCount: 0,
+                    isDefault: false,
+                    isSystemUnassigned: false
+                ),
+            ])
+        )
+
+        await viewModel.load()
+
+        #expect(viewModel.journalTitle == "Weekend Walks")
+    }
 }
 
 @MainActor
@@ -53,6 +75,25 @@ private final class JournalMemoryRepositoryStub: MemoryRepository {
     func moveToRecentlyDeleted(memoryID: UUID, at date: Date) throws {
         throw JournalDetailTestError.unavailable
     }
+}
+
+@MainActor
+private final class JournalRepositoryStub: JournalRepository {
+    let journals: [JournalSummary]
+
+    init(journals: [JournalSummary]) {
+        self.journals = journals
+    }
+
+    func fetchActiveJournals() async throws -> [JournalSummary] { journals }
+    func createJournal(name: String, at date: Date) throws -> Journal { throw JournalDetailTestError.unavailable }
+    func renameJournal(id: UUID, name: String, at date: Date) throws { throw JournalDetailTestError.unavailable }
+    func setDefaultJournal(id: UUID, at date: Date) throws { throw JournalDetailTestError.unavailable }
+    func moveToRecentlyDeleted(
+        journalID: UUID,
+        strategy: JournalDeletionStrategy,
+        at date: Date
+    ) throws { throw JournalDetailTestError.unavailable }
 }
 
 private enum JournalDetailTestError: Error {

@@ -280,6 +280,40 @@ struct MemoryEditSessionViewModelTests {
         #expect(repository.lastUpdate?.journalIDs == nil)
     }
 
+    @Test("A manual pin overrides the canonical location and preserves all candidates")
+    func manualPinUpdatesLocationSnapshot() {
+        let photoLocation = MemoryLocation(latitude: 47.6062, longitude: -122.3321, source: .photoMetadata)
+        let manualLocation = MemoryLocation(latitude: 40.7608, longitude: -111.8910, source: .manualPin)
+        let repository = MemoryEditRepositoryStub()
+        let session = MemoryEditSessionViewModel(
+            memory: MemorySummary(
+                id: UUID(),
+                title: "Memory",
+                caption: nil,
+                capturedAt: Date(),
+                thumbnail: .managedFile("photos/memory.heic"),
+                hasAudio: false,
+                audioDurationSeconds: nil,
+                locationName: nil,
+                location: photoLocation,
+                locationCandidates: [.init(location: photoLocation)],
+                journalNames: []
+            ),
+            repository: repository,
+            mediaStore: InMemoryManagedMediaStore()
+        )
+
+        session.updateLocation(manualLocation)
+
+        #expect(session.save())
+        #expect(repository.lastUpdate?.location == manualLocation)
+        #expect(repository.lastUpdate?.shouldUpdateLocation == true)
+        #expect(repository.lastUpdate?.locationCandidates == [
+            .init(location: photoLocation),
+            .init(location: manualLocation),
+        ])
+    }
+
     private func makeSession(
         photoFilename: String?,
         audioFilename: String? = nil,

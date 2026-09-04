@@ -19,6 +19,7 @@ struct AllMemoriesView: View {
     let makeMemoryEditSession: (MemorySummary) -> MemoryEditSessionViewModel
     let makeMemoryJournalAssignmentViewModel: (MemorySummary) -> MemoryJournalAssignmentViewModel
     let makeVoiceRecordingViewModelForEditing: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+    let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     init(
         viewModel: AllMemoriesViewModel,
@@ -30,7 +31,8 @@ struct AllMemoriesView: View {
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeMemoryEditSession: @escaping (MemorySummary) -> MemoryEditSessionViewModel,
         makeMemoryJournalAssignmentViewModel: @escaping (MemorySummary) -> MemoryJournalAssignmentViewModel,
-        makeVoiceRecordingViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+        makeVoiceRecordingViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel,
+        makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory
     ) {
         _viewModel = State(wrappedValue: viewModel)
         self.openLibrary = openLibrary
@@ -42,6 +44,7 @@ struct AllMemoriesView: View {
         self.makeMemoryEditSession = makeMemoryEditSession
         self.makeMemoryJournalAssignmentViewModel = makeMemoryJournalAssignmentViewModel
         self.makeVoiceRecordingViewModelForEditing = makeVoiceRecordingViewModelForEditing
+        self.makeLocationPickerViewModel = makeLocationPickerViewModel
     }
 
     var body: some View {
@@ -74,6 +77,7 @@ struct AllMemoriesView: View {
                 makeVoiceRecordingViewModel: makeVoiceRecordingViewModel,
                 makeCaptureMediaPreviewViewModel: makeCaptureMediaPreviewViewModel,
                 makeCameraCaptureViewModel: makeCameraCaptureViewModel,
+                makeLocationPickerViewModel: makeLocationPickerViewModel,
                 onSaved: finishCapture
             )
             // The captured draft is the sheet item's identity. Reset child-owned recording and
@@ -83,7 +87,8 @@ struct AllMemoriesView: View {
         .sheet(item: $editSession) { session in
             MemoryEditorSheet(
                 session: session,
-                recordingViewModel: makeVoiceRecordingViewModelForEditing(session)
+                recordingViewModel: makeVoiceRecordingViewModelForEditing(session),
+                makeLocationPickerViewModel: makeLocationPickerViewModel
             ) {
                 viewModel.load()
             }
@@ -140,7 +145,8 @@ struct AllMemoriesView: View {
             makeCameraCaptureViewModel: makePreviewCameraCaptureViewModel,
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
-            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel
+            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
     .appTheme(.listenHere)
@@ -158,7 +164,8 @@ struct AllMemoriesView: View {
             makeCameraCaptureViewModel: makePreviewCameraCaptureViewModel,
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
-            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel
+            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
     .appTheme(.listenHere)
@@ -180,7 +187,8 @@ struct AllMemoriesView: View {
             makeCameraCaptureViewModel: makePreviewCameraCaptureViewModel,
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
-            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel
+            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
     .appTheme(.listenHere)
@@ -198,7 +206,8 @@ struct AllMemoriesView: View {
             makeCameraCaptureViewModel: makePreviewCameraCaptureViewModel,
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
-            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel
+            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
     .appTheme(.listenHere)
@@ -218,7 +227,8 @@ struct AllMemoriesView: View {
             makeCameraCaptureViewModel: makePreviewCameraCaptureViewModel,
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
-            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel
+            makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
     .appTheme(.listenHere)

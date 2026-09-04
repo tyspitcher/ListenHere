@@ -19,6 +19,11 @@ enum PreviewFixtures {
             audioFilename: "preview/forest.m4a",
             audioDurationSeconds: 22,
             locationName: "Mount Rainier, WA",
+            location: MemoryLocation(
+                latitude: 46.85,
+                longitude: -121.76,
+                name: "Mount Rainier, WA"
+            ),
             journalNames: ["Nature Sounds", "Everyday"]
         ),
         MemorySummary(
@@ -31,6 +36,11 @@ enum PreviewFixtures {
             audioFilename: nil,
             audioDurationSeconds: nil,
             locationName: "Portland, ME",
+            location: MemoryLocation(
+                latitude: 43.66,
+                longitude: -70.25,
+                name: "Portland, ME"
+            ),
             journalNames: ["Daily Fragments"]
         ),
         MemorySummary(
@@ -219,6 +229,33 @@ final class PreviewAudioRecordingService: AudioRecordingServicing {
 final class PreviewCameraAuthorizationService: CameraAuthorizationServicing {
     func authorizationStatus() -> CameraAuthorizationStatus { .unavailable }
     func requestAccess() async -> Bool { false }
+}
+
+@MainActor
+final class PreviewCurrentLocationProvider: CurrentLocationProviding {
+    func requestCurrentLocation() async throws -> MemoryLocationCandidate {
+        throw CurrentLocationError.unavailable
+    }
+}
+
+@MainActor
+final class PreviewLocationNameResolver: LocationNameResolving {
+    func name(for location: MemoryLocation) async throws -> String? {
+        location.normalizedName ?? "West Jordan, UT"
+    }
+}
+
+@MainActor
+func makePreviewLocationPickerViewModel(
+    candidates: [MemoryLocationCandidate],
+    initialLocation: MemoryLocation?
+) -> LocationPickerViewModel {
+    LocationPickerViewModel(
+        candidates: candidates,
+        initialLocation: initialLocation,
+        currentLocationProvider: PreviewCurrentLocationProvider(),
+        locationNameResolver: PreviewLocationNameResolver()
+    )
 }
 
 struct PreviewAudioWaveformAnalyzer: AudioWaveformAnalyzing {

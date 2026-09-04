@@ -259,6 +259,38 @@ struct CaptureViewModelTests {
         #expect(FileManager.default.fileExists(atPath: storedURL.path) == false)
         #expect(viewModel.state == .editing)
     }
+
+    @Test("A device location becomes an editable candidate and initial canonical location")
+    func deviceLocationIsAddedToDraft() async {
+        let location = MemoryLocation(latitude: 40.7608, longitude: -111.8910, source: .deviceCapture)
+        let viewModel = CaptureViewModel(
+            origin: .allMemories,
+            memoryRepository: CaptureMemoryRepositoryStub(),
+            mediaStore: InMemoryManagedMediaStore(),
+            currentLocationProvider: CaptureLocationProviderStub(result: .success(.init(location: location)))
+        )
+
+        await viewModel.captureCurrentLocationCandidate()
+
+        #expect(viewModel.draft.location == location)
+        #expect(viewModel.draft.locationCandidates == [.init(location: location)])
+    }
+
+    @Test("Location permission denial leaves capture editable and location optional")
+    func deniedLocationDoesNotBlockCapture() async {
+        let viewModel = CaptureViewModel(
+            origin: .allMemories,
+            memoryRepository: CaptureMemoryRepositoryStub(),
+            mediaStore: InMemoryManagedMediaStore(),
+            currentLocationProvider: CaptureLocationProviderStub(result: .failure(CurrentLocationError.permissionDenied))
+        )
+
+        await viewModel.captureCurrentLocationCandidate()
+
+        #expect(viewModel.draft.location == nil)
+        #expect(viewModel.draft.locationCandidates.isEmpty)
+        #expect(viewModel.state == .editing)
+    }
 }
 
 @MainActor
@@ -289,4 +321,17 @@ private final class CaptureMemoryRepositoryStub: MemoryRepository {
 
 private enum CaptureTestError: Error {
     case failed
+}
+
+@MainActor
+private final class CaptureLocationProviderStub: CurrentLocationProviding {
+    let result: Result<MemoryLocationCandidate, Error>
+
+    init(result: Result<MemoryLocationCandidate, Error>) {
+        self.result = result
+    }
+
+    func requestCurrentLocation() async throws -> MemoryLocationCandidate {
+        try result.get()
+    }
 }

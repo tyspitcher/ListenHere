@@ -69,6 +69,7 @@ struct JournalsContentView: View {
                         }
                     }
                 }
+                .contentMargins(.top, 12, for: .scrollContent)
             case .failed(let message):
                 ContentUnavailableView(
                     "Journals Unavailable",

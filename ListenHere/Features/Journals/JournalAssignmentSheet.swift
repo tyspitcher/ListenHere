@@ -4,20 +4,23 @@ import SwiftUI
 
 struct JournalAssignmentSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var journals: [JournalSummary]
     @State private var selectedJournalIDs: Set<UUID>
     @State private var isApplyingSelection = false
     @State private var errorMessage: String?
 
-    let journals: [JournalSummary]
     let applySelection: (Set<UUID>) async -> Bool
+    let createJournal: ((String) async -> JournalSummary?)?
 
     init(
         journals: [JournalSummary],
         selectedJournalIDs: Set<UUID>,
+        createJournal: ((String) async -> JournalSummary?)? = nil,
         applySelection: @escaping (Set<UUID>) async -> Bool
     ) {
-        self.journals = journals
+        _journals = State(initialValue: journals)
         self.applySelection = applySelection
+        self.createJournal = createJournal
         _selectedJournalIDs = State(
             initialValue: selectedJournalIDs.intersection(journals.map(\.id))
         )
@@ -84,6 +87,18 @@ struct JournalAssignmentSheet: View {
                     }
                     .disabled(selectedJournalIDs.isEmpty || isApplyingSelection)
                 }
+                if let createJournal {
+                    ToolbarItem(placement: .primaryAction) {
+                        NavigationLink {
+                            JournalCreationForm(
+                                createJournal: createJournal,
+                                didCreate: addAndSelect
+                            )
+                        } label: {
+                            Label("New Journal", systemImage: "plus")
+                        }
+                    }
+                }
             }
         }
         .alert("Couldn’t Update Journals", isPresented: errorIsPresented) {
@@ -99,6 +114,17 @@ struct JournalAssignmentSheet: View {
         } else {
             selectedJournalIDs.insert(journalID)
         }
+    }
+
+    private func addAndSelect(_ journal: JournalSummary) {
+        if journals.contains(where: { $0.id == journal.id }) == false {
+            journals.append(journal)
+            journals.sort { first, second in
+                if first.isDefault != second.isDefault { return first.isDefault }
+                return first.name.localizedStandardCompare(second.name) == .orderedAscending
+            }
+        }
+        selectedJournalIDs.insert(journal.id)
     }
 
     private var errorIsPresented: Binding<Bool> {
@@ -117,6 +143,68 @@ struct JournalAssignmentSheet: View {
                 errorMessage = "The journal assignments couldn’t be updated. Please try again."
                 return
             }
+            dismiss()
+        }
+    }
+}
+
+private struct JournalCreationForm: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var isCreating = false
+    @State private var errorMessage: String?
+    @FocusState private var nameFieldIsFocused: Bool
+
+    let createJournal: (String) async -> JournalSummary?
+    let didCreate: (JournalSummary) -> Void
+
+    var body: some View {
+        Form {
+            TextField("Journal Name", text: $name)
+                .focused($nameFieldIsFocused)
+                .submitLabel(.done)
+                .onSubmit(create)
+        }
+        .navigationTitle("New Journal")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Create", action: create)
+                    .disabled(normalizedName.isEmpty || isCreating)
+            }
+        }
+        .task { nameFieldIsFocused = true }
+        .alert("Couldn’t Create Journal", isPresented: errorIsPresented) {
+            Button("OK") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "Please try again.")
+        }
+    }
+
+    private var normalizedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var errorIsPresented: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { if $0 == false { errorMessage = nil } }
+        )
+    }
+
+    private func create() {
+        guard normalizedName.isEmpty == false, isCreating == false else { return }
+        isCreating = true
+        Task {
+            guard let journal = await createJournal(normalizedName) else {
+                isCreating = false
+                errorMessage = "The journal couldn’t be created. Try again."
+                return
+            }
+            didCreate(journal)
             dismiss()
         }
     }

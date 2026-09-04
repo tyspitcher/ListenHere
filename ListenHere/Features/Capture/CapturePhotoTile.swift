@@ -14,8 +14,9 @@ struct CapturePhotoTile: View {
     let reportImportFailure: () -> Void
     let removePhoto: () -> Void
 
-    @State private var sourcePopoverIsPresented = false
     @State private var removalConfirmationIsPresented = false
+    @State private var photoLibraryIsPresented = false
+    @State private var photoLibraryIsImporting = false
 
     var body: some View {
         Group {
@@ -31,6 +32,12 @@ struct CapturePhotoTile: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(palette.separator)
         }
+        .managedPhotoLibraryPicker(
+            isPresented: $photoLibraryIsPresented,
+            isImporting: $photoLibraryIsImporting,
+            onPhotoDataSelected: importPhoto,
+            onImportFailure: reportImportFailure
+        )
         .disabled(isEnabled == false)
     }
 
@@ -39,36 +46,30 @@ struct CapturePhotoTile: View {
     }
 
     private var addPhotoButton: some View {
-        Button(action: presentSources) {
-            VStack(spacing: 12) {
-                Image(systemName: "photo.badge.plus")
-                    .font(.largeTitle)
-                Text("Add Photo")
-                    .font(.headline)
+        Group {
+            if photoLibraryIsImporting {
+                ProgressView("Adding Photo")
+                    .frame(maxWidth: .infinity, minHeight: 180)
+            } else {
+                Menu {
+                    Button("Take Photo", systemImage: "camera", action: takePhoto)
+                    Button("Choose from Library", systemImage: "photo.on.rectangle") {
+                        photoLibraryIsPresented = true
+                    }
+                } label: {
+                    VStack(spacing: 12) {
+                        Image(systemName: "photo.badge.plus")
+                            .font(.largeTitle)
+                        Text("Add Photo")
+                            .font(.headline)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(palette.accent)
+                .accessibilityHint("Choose the camera or Photo Library.")
             }
-            .frame(maxWidth: .infinity, minHeight: 180)
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(palette.accent)
-        .accessibilityHint("Choose the camera or Photo Library.")
-        .popover(isPresented: $sourcePopoverIsPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Add Photo")
-                    .font(.headline)
-                    .padding(.bottom, 4)
-
-                Button("Take Photo", systemImage: "camera", action: chooseCamera)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-
-                PhotoLibraryPicker(
-                    onPhotoDataSelected: importPhoto,
-                    onImportFailure: reportImportFailure
-                )
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            }
-            .padding()
-            .presentationCompactAdaptation(.sheet)
         }
     }
 
@@ -98,15 +99,6 @@ struct CapturePhotoTile: View {
                     }
             }
             .clipShape(.rect(cornerRadius: 20))
-    }
-
-    private func presentSources() {
-        sourcePopoverIsPresented = true
-    }
-
-    private func chooseCamera() {
-        sourcePopoverIsPresented = false
-        takePhoto()
     }
 
     private func presentRemovalConfirmation() {

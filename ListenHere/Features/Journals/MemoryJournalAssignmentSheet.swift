@@ -22,6 +22,7 @@ struct MemoryJournalAssignmentSheet: View {
             JournalAssignmentSheet(
                 journals: viewModel.journals,
                 selectedJournalIDs: viewModel.selectedJournalIDs,
+                createJournal: viewModel.createJournal,
                 applySelection: applySelection
             )
         case .failed:

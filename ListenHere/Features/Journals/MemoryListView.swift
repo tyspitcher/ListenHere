@@ -16,6 +16,7 @@ struct MemoryListView: View {
     private let makeMemoryEditSession: (MemorySummary) -> MemoryEditSessionViewModel
     private let makeMemoryJournalAssignmentViewModel: (MemorySummary) -> MemoryJournalAssignmentViewModel
     private let makeVoiceRecordingViewModelForEditing: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+    private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     init(
         viewModel: JournalDetailViewModel,
@@ -26,7 +27,8 @@ struct MemoryListView: View {
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeMemoryEditSession: @escaping (MemorySummary) -> MemoryEditSessionViewModel,
         makeMemoryJournalAssignmentViewModel: @escaping (MemorySummary) -> MemoryJournalAssignmentViewModel,
-        makeVoiceRecordingViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+        makeVoiceRecordingViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel,
+        makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory
     ) {
         _viewModel = State(wrappedValue: viewModel)
         self.openMemory = openMemory
@@ -37,6 +39,7 @@ struct MemoryListView: View {
         self.makeMemoryEditSession = makeMemoryEditSession
         self.makeMemoryJournalAssignmentViewModel = makeMemoryJournalAssignmentViewModel
         self.makeVoiceRecordingViewModelForEditing = makeVoiceRecordingViewModelForEditing
+        self.makeLocationPickerViewModel = makeLocationPickerViewModel
     }
 
     var body: some View {
@@ -72,7 +75,7 @@ struct MemoryListView: View {
                 ProgressView("Loading Journal")
             }
         }
-        .navigationTitle("Journal")
+        .navigationTitle(viewModel.journalTitle)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("New Memory", systemImage: "plus", action: presentCapture)
@@ -84,6 +87,7 @@ struct MemoryListView: View {
                 makeVoiceRecordingViewModel: makeVoiceRecordingViewModel,
                 makeCaptureMediaPreviewViewModel: makeCaptureMediaPreviewViewModel,
                 makeCameraCaptureViewModel: makeCameraCaptureViewModel,
+                makeLocationPickerViewModel: makeLocationPickerViewModel,
                 onSaved: finishCapture
             )
             .id(captureViewModel.id)
@@ -91,7 +95,8 @@ struct MemoryListView: View {
         .sheet(item: $editSession) { session in
             MemoryEditorSheet(
                 session: session,
-                recordingViewModel: makeVoiceRecordingViewModelForEditing(session)
+                recordingViewModel: makeVoiceRecordingViewModelForEditing(session),
+                makeLocationPickerViewModel: makeLocationPickerViewModel
             ) {
                 await viewModel.load()
             }

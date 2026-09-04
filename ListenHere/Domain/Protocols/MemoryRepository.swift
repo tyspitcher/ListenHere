@@ -9,6 +9,7 @@ protocol MemoryRepository {
     func fetchActiveMemory(id: UUID) async throws -> MemorySummary?
     func createMemory(from draft: MemoryDraft, origin: MemoryCreationOrigin) throws -> Memory
     func updateMemoryContent(id: UUID, update: MemoryContentUpdate) throws
+    func persistResolvedLocationName(memoryID: UUID, location: MemoryLocation) throws -> Bool
     func updateJournalAssignments(memoryID: UUID, journalIDs: Set<UUID>) throws
     func moveToRecentlyDeleted(memoryID: UUID, at date: Date) throws
 }
@@ -16,5 +17,9 @@ protocol MemoryRepository {
 extension MemoryRepository {
     func updateMemoryContent(id: UUID, update: MemoryContentUpdate) throws {
         throw ListenHerePersistenceError.memoryNotFound
+    }
+
+    func persistResolvedLocationName(memoryID: UUID, location: MemoryLocation) throws -> Bool {
+        false
     }
 }

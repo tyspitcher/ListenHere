@@ -105,6 +105,12 @@ Core behavior and terminology:
   or place a pin manually on a map; the selected value becomes the memory's single canonical
   location. Imported audio may not provide location metadata, so absence is expected and must
   not block editing.
+- Reverse-geocode selected coordinates into a recognizable landmark or city/region name when
+  Apple Maps data is available. Show that name as the primary location description in the
+  picker, memory cards, and Memory Detail, with coordinates as secondary information. A lookup
+  failure must retain the coordinate and must not block saving. Start resolution automatically
+  for new capture candidates, and retry unnamed saved locations during browsing; a late result
+  must never replace a location that a person has since edited.
 - Show elapsed recording time and a live waveform in the sound tile. Recording may be stopped
   manually at any time and automatically stops after five minutes, preserving the partial clip.
 - Audio never autoplays. The user deliberately presses Play.

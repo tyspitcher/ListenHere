@@ -20,9 +20,23 @@
       "blur-material" : null,
       "layers" : [
         {
+          "blend-mode" : "darken",
+          "image-name" : "Untitled - September 1, 2026 07.48.05 copy.PNG",
+          "name" : "Untitled - September 1, 2026 07.48.05 copy",
+          "opacity" : 0.85,
+          "position" : {
+            "scale" : 1.01,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
           "blend-mode" : "overlay",
-          "image-name" : "heart-fill.png",
-          "name" : "heart-fill",
+          "hidden" : true,
+          "image-name" : "Untitled - September 1, 2026 07.48.05 2.PNG",
+          "name" : "Untitled - September 1, 2026 07.48.05 2",
           "opacity" : 1,
           "position" : {
             "scale" : 0.9,
@@ -34,12 +48,26 @@
         },
         {
           "blend-mode" : "overlay",
-          "image-name" : "heart-outline.png",
-          "name" : "heart-outline",
+          "hidden" : true,
+          "image-name" : "Untitled - September 1, 2026 07.48.05.PNG",
+          "name" : "Untitled - September 1, 2026 07.48.05",
           "position" : {
             "scale" : 0.9,
             "translation-in-points" : [
               64.44444444444298,
+              0
+            ]
+          }
+        },
+        {
+          "blend-mode" : "overlay",
+          "image-name" : "Untitled - September 1, 2026 07.48.05 copy 2.PNG",
+          "name" : "Untitled - September 1, 2026 07.48.05 copy 2",
+          "opacity" : 0.85,
+          "position" : {
+            "scale" : 1.01,
+            "translation-in-points" : [
+              0,
               0
             ]
           }

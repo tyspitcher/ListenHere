@@ -12,16 +12,20 @@ struct MemoryEditorSheet: View {
     @State private var isConfirmingSoundRemoval = false
     @State private var isCompletingSave = false
     @State private var isChoosingJournals = false
+    @State private var isChoosingLocation = false
 
     let onSaved: () async -> Void
+    private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     init(
         session: MemoryEditSessionViewModel,
         recordingViewModel: VoiceRecordingViewModel,
+        makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory,
         onSaved: @escaping () async -> Void
     ) {
         _session = State(wrappedValue: session)
         _recordingViewModel = State(wrappedValue: recordingViewModel)
+        self.makeLocationPickerViewModel = makeLocationPickerViewModel
         self.onSaved = onSaved
     }
 
@@ -41,6 +45,28 @@ struct MemoryEditorSheet: View {
 
                 Section("Memory Date") {
                     DatePicker("Date", selection: $session.capturedAt, displayedComponents: .date)
+                }
+
+                Section("Location") {
+                    Button {
+                        isChoosingLocation = true
+                    } label: {
+                        LabeledContent("Place") {
+                            if let location = session.location {
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(location.displayName)
+                                    Text(location.coordinateDescription)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                }
+                                .multilineTextAlignment(.trailing)
+                            } else {
+                                Text("Add Location")
+                            }
+                        }
+                    }
+                    .foregroundStyle(.primary)
                 }
 
                 if session.supportsJournalEditing {
@@ -88,10 +114,20 @@ struct MemoryEditorSheet: View {
             JournalAssignmentSheet(
                 journals: session.availableJournals,
                 selectedJournalIDs: session.selectedJournalIDs,
+                createJournal: session.createJournal,
                 applySelection: { journalIDs in
                     session.updateJournalSelection(journalIDs)
                     return true
                 }
+            )
+        }
+        .sheet(isPresented: $isChoosingLocation) {
+            LocationPickerSheet(
+                viewModel: makeLocationPickerViewModel(
+                    session.locationCandidates,
+                    session.location
+                ),
+                applySelection: session.updateLocation
             )
         }
         .task { await session.loadJournals() }

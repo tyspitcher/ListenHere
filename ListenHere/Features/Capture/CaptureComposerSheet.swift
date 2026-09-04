@@ -11,6 +11,7 @@ struct CaptureComposerSheet: View {
 
     let viewModel: CaptureViewModel
     private let onSaved: () -> Void
+    private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     @State private var recordingViewModel: VoiceRecordingViewModel
     @State private var previewViewModel: CaptureMediaPreviewViewModel
@@ -23,16 +24,19 @@ struct CaptureComposerSheet: View {
     @State private var discardConfirmationIsPresented = false
     @State private var cleanupFailureDiscardConfirmationIsPresented = false
     @State private var cleanupRetryTarget: CleanupRetryTarget?
+    @State private var isChoosingLocation = false
 
     init(
         viewModel: CaptureViewModel,
         makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> VoiceRecordingViewModel,
         makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> CaptureMediaPreviewViewModel,
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
+        makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory,
         onSaved: @escaping () -> Void
     ) {
         self.viewModel = viewModel
         self.onSaved = onSaved
+        self.makeLocationPickerViewModel = makeLocationPickerViewModel
         _recordingViewModel = State(wrappedValue: makeVoiceRecordingViewModel(viewModel))
         _previewViewModel = State(wrappedValue: makeCaptureMediaPreviewViewModel(viewModel))
         _cameraViewModel = State(wrappedValue: makeCameraCaptureViewModel())
@@ -55,6 +59,7 @@ struct CaptureComposerSheet: View {
                 chooseAudioFile: presentAudioFileImporter,
                 removePhoto: removePhoto,
                 removeAudio: removeAudio,
+                chooseLocation: { isChoosingLocation = true },
                 save: save
             )
             .navigationTitle("New Memory")
@@ -66,6 +71,15 @@ struct CaptureComposerSheet: View {
             }
         }
         .presentationDetents([.large])
+        .sheet(isPresented: $isChoosingLocation) {
+            LocationPickerSheet(
+                viewModel: makeLocationPickerViewModel(
+                    viewModel.draft.locationCandidates,
+                    viewModel.draft.location
+                ),
+                applySelection: viewModel.updateLocation
+            )
+        }
         .interactiveDismissDisabled(viewModel.hasUnsavedDraft || recordingViewModel.hasUnsavedRecording)
         .fileImporter(
             isPresented: $audioFileImporterIsPresented,
@@ -190,6 +204,7 @@ struct CaptureComposerSheet: View {
     private func startRecording() {
         Task {
             await previewViewModel.stopPlayback()
+            Task { await viewModel.captureCurrentLocationCandidate() }
             await recordingViewModel.start()
         }
     }

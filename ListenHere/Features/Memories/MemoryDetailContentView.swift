@@ -11,7 +11,18 @@ struct MemoryDetailContentView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                MemoryDetailPhotoView(thumbnail: memory.thumbnail, photoURL: photoURL)
+                if memory.thumbnail != nil {
+                    MemoryDetailPhotoView(thumbnail: memory.thumbnail, photoURL: photoURL)
+                        .overlay(alignment: .bottomTrailing) {
+                            if memory.hasAudio {
+                                AudioPlaybackImageOverlay(
+                                    playbackState: audioPlaybackState,
+                                    togglePlayback: togglePlayback
+                                )
+                                .padding(12)
+                            }
+                        }
+                }
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text(memory.title)
@@ -23,28 +34,30 @@ struct MemoryDetailContentView: View {
                     }
 
                     Label {
-                        Text(memory.capturedAt, format: .dateTime.month(.wide).day().year().hour().minute())
+                        Text(memory.capturedAt, format: .dateTime.month(.wide).day().year())
                     } icon: {
                         Image(systemName: "calendar")
                     }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                    if let locationName = memory.locationName {
-                        Label(locationName, systemImage: "location")
+                    if let location = memory.location {
+                        LocationDescriptionView(location: location)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                if memory.hasAudio {
+                if memory.hasAudio, memory.thumbnail == nil {
                     AudioPlaybackControls(
                         playbackState: audioPlaybackState,
                         togglePlayback: togglePlayback
                     )
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

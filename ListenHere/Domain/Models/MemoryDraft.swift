@@ -3,11 +3,7 @@
 import Foundation
 
 struct MemoryDraft: Equatable, Sendable {
-    struct Location: Equatable, Sendable {
-        var latitude: Double
-        var longitude: Double
-        var name: String?
-    }
+    typealias Location = MemoryLocation
 
     struct PhotoEdits: Equatable, Sendable {
         var filterIdentifier: String?
@@ -49,6 +45,7 @@ struct MemoryDraft: Equatable, Sendable {
     var audioFilename: String?
     var audioDurationSeconds: Double?
     var location: Location?
+    var locationCandidates: [MemoryLocationCandidate] = []
     var journalIDs: Set<UUID> = []
     var photoEdits: PhotoEdits?
     var audioEdits: AudioEdits?
@@ -64,9 +61,11 @@ struct MemoryDraft: Equatable, Sendable {
             throw MemoryDraftValidationError.invalidAudioDuration
         }
 
-        if let location,
-           (-90...90).contains(location.latitude) == false
-            || (-180...180).contains(location.longitude) == false {
+        if let location, location.isValid == false {
+            throw MemoryDraftValidationError.invalidLocation
+        }
+
+        guard locationCandidates.allSatisfy({ $0.location.isValid }) else {
             throw MemoryDraftValidationError.invalidLocation
         }
 

@@ -14,6 +14,7 @@ struct MemoryDetailPhotoView: View {
                 .scaledToFit()
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .accessibilityHidden(true)
+                .frame(maxWidth: .infinity)
         case .managedFile:
             ManagedPhotoImageView(
                 photoURL: photoURL,

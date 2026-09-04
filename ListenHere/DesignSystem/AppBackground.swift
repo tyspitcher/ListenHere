@@ -31,6 +31,8 @@ struct AppBackground: View {
 
 extension View {
     func appScreenBackground() -> some View {
-        background { AppBackground() }
+        background {
+            AppBackground()
+        }
     }
 }

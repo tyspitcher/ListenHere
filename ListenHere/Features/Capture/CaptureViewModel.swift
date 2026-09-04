@@ -63,12 +63,18 @@ final class CaptureViewModel: Identifiable {
         hasUnsavedManagedMedia
             || draft.normalizedTitle != nil
             || draft.normalizedCaption != nil
+            || draft.location != nil
+            || draft.locationCandidates.isEmpty == false
     }
 
     private let origin: MemoryCreationOrigin
     private let memoryRepository: any MemoryRepository
     private let mediaStore: any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading
+    private let photoLocationExtractor: any PhotoLocationExtracting
+    private let currentLocationProvider: any CurrentLocationProviding
+    private let locationNameResolver: (any LocationNameResolving)?
     private var ownedMediaFilenames: Set<String> = []
+    private var locationNameResolutionTasks: [String: Task<Void, Never>] = [:]
     private static let logger = Logger(
         subsystem: "com.tysonpitcher.ListenHere",
         category: "Capture"
@@ -77,12 +83,18 @@ final class CaptureViewModel: Identifiable {
     init(
         origin: MemoryCreationOrigin,
         memoryRepository: any MemoryRepository,
-        mediaStore: any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading
+        mediaStore: any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading,
+        photoLocationExtractor: (any PhotoLocationExtracting)? = nil,
+        currentLocationProvider: (any CurrentLocationProviding)? = nil,
+        locationNameResolver: (any LocationNameResolving)? = nil
     ) {
         self.origin = origin
         self.draft = MemoryDraft()
         self.memoryRepository = memoryRepository
         self.mediaStore = mediaStore
+        self.photoLocationExtractor = photoLocationExtractor ?? ImageIOPhotoLocationExtractor()
+        self.currentLocationProvider = currentLocationProvider ?? CoreLocationCurrentLocationProvider()
+        self.locationNameResolver = locationNameResolver
     }
 
     func updateTitle(_ title: String?) {
@@ -128,6 +140,21 @@ final class CaptureViewModel: Identifiable {
     func updateLocation(_ location: MemoryDraft.Location?) {
         guard beginEditingIfPossible() else { return }
         draft.location = location
+        if let location {
+            appendLocationCandidate(MemoryLocationCandidate(location: location))
+            resolveLocationNameIfNeeded(for: location)
+        }
+    }
+
+    func captureCurrentLocationCandidate() async {
+        guard beginEditingIfPossible() else { return }
+        do {
+            appendLocationCandidate(try await currentLocationProvider.requestCurrentLocation())
+        } catch is CancellationError {
+            return
+        } catch {
+            // Location remains optional. A denial or unavailable fix never interrupts recording.
+        }
     }
 
     func importPhoto(_ data: Data, preferredFileExtension: String) {
@@ -145,6 +172,9 @@ final class CaptureViewModel: Identifiable {
             )
             draft.photoFilename = file.filename
             ownedMediaFilenames.insert(file.filename)
+            if let candidate = photoLocationExtractor.locationCandidate(from: data) {
+                appendLocationCandidate(candidate)
+            }
         } catch {
             state = .failed(.photoImport)
         }
@@ -251,6 +281,59 @@ final class CaptureViewModel: Identifiable {
         state = .editing
     }
 
+    private func appendLocationCandidate(_ candidate: MemoryLocationCandidate) {
+        guard candidate.location.isValid,
+              draft.locationCandidates.contains(candidate) == false else {
+            return
+        }
+        draft.locationCandidates.append(candidate)
+        if draft.location == nil {
+            draft.location = candidate.location
+        }
+        resolveLocationNameIfNeeded(for: candidate.location)
+    }
+
+    private func resolveLocationNameIfNeeded(for location: MemoryLocation) {
+        guard let locationNameResolver,
+              location.normalizedName == nil else {
+            return
+        }
+
+        let taskID = MemoryLocationCandidate(location: location).id
+        guard locationNameResolutionTasks[taskID] == nil else { return }
+
+        locationNameResolutionTasks[taskID] = Task { [weak self] in
+            defer { self?.locationNameResolutionTasks[taskID] = nil }
+            do {
+                guard let name = try await locationNameResolver.name(for: location) else { return }
+                guard Task.isCancelled == false, let self else { return }
+                self.applyResolvedLocationName(name, to: location)
+            } catch {
+                // Capture is intentionally independent of a Maps response. Browsing later will
+                // retry unnamed saved locations when a connection becomes available.
+            }
+        }
+    }
+
+    private func applyResolvedLocationName(_ name: String, to location: MemoryLocation) {
+        if case .saved = state { return }
+
+        var namedLocation = location
+        namedLocation.name = name
+        draft.locationCandidates = draft.locationCandidates.map { candidate in
+            guard candidate.location.representsSamePlace(as: location),
+                  candidate.location.normalizedName == nil else {
+                return candidate
+            }
+            return MemoryLocationCandidate(location: namedLocation)
+        }
+        if let selectedLocation = draft.location,
+           selectedLocation.representsSamePlace(as: location),
+           selectedLocation.normalizedName == nil {
+            draft.location = namedLocation
+        }
+    }
+
     private func removeManagedMedia(filename: String?, clear: () -> Void) {
         guard let filename else { return }
         guard ownedMediaFilenames.contains(filename) else {
@@ -291,6 +374,8 @@ final class CaptureViewModel: Identifiable {
     }
 
     private func resetDraft() {
+        locationNameResolutionTasks.values.forEach { $0.cancel() }
+        locationNameResolutionTasks.removeAll()
         draft = MemoryDraft()
         state = .editing
     }

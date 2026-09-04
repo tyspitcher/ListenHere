@@ -9,11 +9,8 @@ struct PhotoLibraryPicker: View {
     let onPhotoDataSelected: (Data, String) -> Void
     let onImportFailure: () -> Void
 
-    @State private var selection: PhotosPickerItem?
     @State private var isPresented = false
     @State private var isImporting = false
-    @State private var importTask: Task<Void, Never>?
-    @State private var importGeneration = 0
 
     var body: some View {
         Group {
@@ -27,15 +24,55 @@ struct PhotoLibraryPicker: View {
                 }
             }
         }
-        .photosPicker(
+        .managedPhotoLibraryPicker(
             isPresented: $isPresented,
-            selection: $selection,
-            matching: .images
+            isImporting: $isImporting,
+            onPhotoDataSelected: onPhotoDataSelected,
+            onImportFailure: onImportFailure
         )
-        .onChange(of: selection) { _, item in
-            guard let item else { return }
-            importPhoto(from: item)
-        }
+    }
+}
+
+extension View {
+    func managedPhotoLibraryPicker(
+        isPresented: Binding<Bool>,
+        isImporting: Binding<Bool>,
+        onPhotoDataSelected: @escaping (Data, String) -> Void,
+        onImportFailure: @escaping () -> Void
+    ) -> some View {
+        modifier(
+            ManagedPhotoLibraryPickerModifier(
+                isPresented: isPresented,
+                isImporting: isImporting,
+                onPhotoDataSelected: onPhotoDataSelected,
+                onImportFailure: onImportFailure
+            )
+        )
+    }
+}
+
+private struct ManagedPhotoLibraryPickerModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    @Binding var isImporting: Bool
+
+    let onPhotoDataSelected: (Data, String) -> Void
+    let onImportFailure: () -> Void
+
+    @State private var selection: PhotosPickerItem?
+    @State private var importTask: Task<Void, Never>?
+    @State private var importGeneration = 0
+
+    func body(content: Content) -> some View {
+        content
+            .photosPicker(
+                isPresented: $isPresented,
+                selection: $selection,
+                matching: .images
+            )
+            .onChange(of: selection) { _, item in
+                guard let item else { return }
+                importPhoto(from: item)
+            }
     }
 
     private func importPhoto(from item: PhotosPickerItem) {

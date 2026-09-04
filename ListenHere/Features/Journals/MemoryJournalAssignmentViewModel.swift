@@ -58,4 +58,20 @@ final class MemoryJournalAssignmentViewModel: Identifiable {
             return false
         }
     }
+
+    func createJournal(_ rawName: String) async -> JournalSummary? {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.isEmpty == false else { return nil }
+
+        do {
+            let created = try journalRepository.createJournal(name: name, at: Date())
+            journals = try await journalRepository.fetchActiveJournals()
+                .filter { $0.isSystemUnassigned == false }
+            return journals.first(where: { $0.id == created.id })
+        } catch is CancellationError {
+            return nil
+        } catch {
+            return nil
+        }
+    }
 }

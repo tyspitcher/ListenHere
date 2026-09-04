@@ -60,6 +60,26 @@ struct MemoryDetailViewModelTests {
         #expect(viewModel.audioPlaybackState == .paused(elapsed: 0, duration: 12))
     }
 
+    @Test("Pausing preserves the current elapsed time")
+    func pausingPreservesElapsedTime() async {
+        let audioURL = URL(filePath: "/tmp/audio/morning.m4a")
+        let playbackService = AudioPlaybackServiceStub(duration: 12)
+        let viewModel = MemoryDetailViewModel(
+            memoryID: UUID(),
+            repository: MemoryDetailRepositoryStub(memory: makeMemory()),
+            mediaStore: ManagedMediaReaderStub(urls: ["audio/morning.m4a": audioURL]),
+            audioPlaybackService: playbackService
+        )
+
+        await viewModel.load()
+        viewModel.togglePlayback()
+        playbackService.setCurrentTime(4.5)
+
+        viewModel.togglePlayback()
+
+        #expect(viewModel.audioPlaybackState == .paused(elapsed: 4.5, duration: 12))
+    }
+
     private func makeMemory() -> MemorySummary {
         MemorySummary(
             id: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)),
@@ -140,6 +160,10 @@ private final class AudioPlaybackServiceStub: AudioPlaybackServicing {
     func stop() async {
         currentTime = 0
         isPlaying = false
+    }
+
+    func setCurrentTime(_ time: TimeInterval) {
+        currentTime = time
     }
 }
 

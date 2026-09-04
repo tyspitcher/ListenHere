@@ -14,7 +14,6 @@ struct CaptureSoundTile: View {
     let chooseAudioFile: () -> Void
     let removeAudio: () -> Void
 
-    @State private var sourcePopoverIsPresented = false
     @State private var removalConfirmationIsPresented = false
 
     var body: some View {
@@ -54,7 +53,10 @@ struct CaptureSoundTile: View {
     }
 
     private var addSoundButton: some View {
-        Button(action: presentSources) {
+        Menu {
+            Button("Record Sound", systemImage: "mic.fill", action: startRecording)
+            Button("Choose Audio File", systemImage: "doc.badge.plus", action: chooseAudioFile)
+        } label: {
             VStack(spacing: 12) {
                 Image(systemName: "waveform.badge.plus")
                     .font(.largeTitle)
@@ -68,21 +70,6 @@ struct CaptureSoundTile: View {
         .foregroundStyle(palette.secondaryAccent)
         .disabled(isEnabled == false)
         .accessibilityHint("Choose recording or an audio file.")
-        .popover(isPresented: $sourcePopoverIsPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Add Sound")
-                    .font(.headline)
-                    .padding(.bottom, 4)
-
-                Button("Record Sound", systemImage: "mic.fill", action: chooseRecording)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-
-                Button("Choose Audio File", systemImage: "doc.badge.plus", action: chooseFile)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            }
-            .padding()
-            .presentationCompactAdaptation(.sheet)
-        }
     }
 
     private var stopRecordingButton: some View {
@@ -188,20 +175,6 @@ struct CaptureSoundTile: View {
         case .failed:
             "Playback failed"
         }
-    }
-
-    private func presentSources() {
-        sourcePopoverIsPresented = true
-    }
-
-    private func chooseRecording() {
-        sourcePopoverIsPresented = false
-        startRecording()
-    }
-
-    private func chooseFile() {
-        sourcePopoverIsPresented = false
-        chooseAudioFile()
     }
 
     private func presentRemovalConfirmation() {

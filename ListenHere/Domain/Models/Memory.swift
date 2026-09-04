@@ -21,6 +21,8 @@ final class Memory {
     var latitude: Double?
     var longitude: Double?
     var locationName: String?
+    var locationSourceRawValue: String?
+    var locationCandidatesData: Data?
     var journals: [Journal]?
 
     @Relationship(deleteRule: .cascade, inverse: \PhotoEditRecipe.memory)
@@ -61,20 +63,46 @@ final class Memory {
         latitude != nil && longitude != nil
     }
 
+    var location: MemoryLocation? {
+        guard let latitude, let longitude else { return nil }
+        return MemoryLocation(
+            latitude: latitude,
+            longitude: longitude,
+            name: locationName,
+            source: MemoryLocationSource(rawValue: locationSourceRawValue ?? "") ?? .manualPin
+        )
+    }
+
+    var locationCandidates: [MemoryLocationCandidate] {
+        get {
+            guard let locationCandidatesData else { return [] }
+            return (try? JSONDecoder().decode([MemoryLocationCandidate].self, from: locationCandidatesData)) ?? []
+        }
+        set {
+            locationCandidatesData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
     var isRecentlyDeleted: Bool {
         deletedAt != nil
     }
 
     func setLocation(latitude: Double, longitude: Double, name: String? = nil) {
-        self.latitude = latitude
-        self.longitude = longitude
-        locationName = name
+        setLocation(MemoryLocation(latitude: latitude, longitude: longitude, name: name))
+    }
+
+    func setLocation(_ location: MemoryLocation) {
+        latitude = location.latitude
+        longitude = location.longitude
+        locationName = location.name
+        locationSourceRawValue = location.source.rawValue
     }
 
     func clearLocation() {
         latitude = nil
         longitude = nil
         locationName = nil
+        locationSourceRawValue = nil
     }
 
     func moveToRecentlyDeleted(at date: Date = Date(), batchID: UUID = UUID()) {

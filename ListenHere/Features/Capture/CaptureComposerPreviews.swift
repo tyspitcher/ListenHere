@@ -46,6 +46,7 @@ private struct CaptureComposerPreview: View {
                 chooseAudioFile: {},
                 removePhoto: {},
                 removeAudio: {},
+                chooseLocation: {},
                 save: {}
             )
             .navigationTitle("New Memory")
