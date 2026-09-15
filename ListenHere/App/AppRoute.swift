@@ -9,4 +9,6 @@ enum AppRoute: Codable, Hashable, Sendable {
     case places
     case recentlyDeleted
     case memory(UUID)
+    case recentlyDeletedMemory(UUID)
+    case recentlyDeletedJournal(UUID)
 }

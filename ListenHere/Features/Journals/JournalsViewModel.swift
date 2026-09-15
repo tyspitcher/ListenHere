@@ -140,8 +140,7 @@ final class JournalsViewModel {
     }
 
     @discardableResult
-    func deleteJournalAndMemories() async -> Bool {
-        guard let journal = journalPendingDeletion else { return false }
+    func deleteJournalAndMemories(_ journal: JournalSummary) async -> Bool {
         journalPendingDeletion = nil
         return await delete(journal, strategy: .moveContainedMemoriesToRecentlyDeleted)
     }

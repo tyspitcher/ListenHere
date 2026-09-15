@@ -15,6 +15,48 @@ struct VoiceRecordingViewModelTests {
         #expect(service.startCount == 0)
     }
 
+    @Test("First-use permission waits for the app to become active before recording")
+    func firstUsePermissionWaitsForActiveScene() async {
+        let service = ControlledPermissionRecordingServiceStub()
+        let viewModel = VoiceRecordingViewModel(service: service, clock: ManualRecordingClock())
+        let startTask = Task { await viewModel.start() }
+
+        await waitUntil { service.hasPendingPermissionRequest }
+        #expect(viewModel.state == .requestingPermission)
+        #expect(service.startCount == 0)
+
+        await viewModel.applicationDidBecomeInactive()
+        service.resolvePermission(granted: true)
+        await startTask.value
+
+        #expect(viewModel.state == .preparingRecording)
+        #expect(service.startCount == 0)
+
+        await viewModel.applicationDidBecomeActive()
+
+        #expect(viewModel.isRecording)
+        #expect(service.startCount == 1)
+    }
+
+    @Test("Cancelling while the first permission prompt is open never starts recording")
+    func cancellingDuringFirstUsePermissionPromptPreventsDelayedStart() async {
+        let service = ControlledPermissionRecordingServiceStub()
+        let viewModel = VoiceRecordingViewModel(service: service, clock: ManualRecordingClock())
+        let startTask = Task { await viewModel.start() }
+
+        await waitUntil { service.hasPendingPermissionRequest }
+        await viewModel.applicationDidBecomeInactive()
+        service.resolvePermission(granted: true)
+        await startTask.value
+
+        await viewModel.discardRecording()
+        await viewModel.applicationDidBecomeActive()
+
+        #expect(viewModel.state == .idle)
+        #expect(service.startCount == 0)
+        #expect(service.didCancel)
+    }
+
     @Test("Stopping imports the completed recording exactly once")
     func stoppingCompletesOnce() async {
         let service = VoiceRecordingServiceStub()
@@ -67,7 +109,7 @@ struct VoiceRecordingViewModelTests {
 
         #expect(viewModel.elapsed == 12.4)
         #expect(viewModel.elapsedDescription == "0:12")
-        #expect(viewModel.levels == [0.6])
+        #expect(viewModel.levels == [AudioMeterLevel(average: 0.6, peak: 0.8)])
     }
 
     @Test("The five-minute limit automatically preserves the recording")
@@ -164,7 +206,7 @@ private final class VoiceRecordingServiceStub: AudioRecordingServicing {
     let events: AsyncStream<AudioRecordingServiceEvent>
 
     private let permissionGranted: Bool
-    private let meterLevel: Double
+    private let averageMeterLevel: Double
     private let recordingDuration: TimeInterval
     private var eventContinuation: AsyncStream<AudioRecordingServiceEvent>.Continuation?
     private(set) var didCancel = false
@@ -177,7 +219,7 @@ private final class VoiceRecordingServiceStub: AudioRecordingServicing {
         recordingDuration: TimeInterval = 12
     ) {
         self.permissionGranted = permissionGranted
-        self.meterLevel = meterLevel
+        averageMeterLevel = meterLevel
         self.recordingDuration = recordingDuration
         let stream = AsyncStream<AudioRecordingServiceEvent>.makeStream()
         events = stream.stream
@@ -199,9 +241,53 @@ private final class VoiceRecordingServiceStub: AudioRecordingServicing {
         didCancel = true
     }
 
-    func normalizedMeterLevel() -> Double { meterLevel }
+    func meterLevel() -> AudioMeterLevel {
+        AudioMeterLevel(average: averageMeterLevel, peak: min(1, averageMeterLevel + 0.2))
+    }
 
     func send(_ event: AudioRecordingServiceEvent) {
         eventContinuation?.yield(event)
     }
+}
+
+@MainActor
+private final class ControlledPermissionRecordingServiceStub: AudioRecordingServicing {
+    let events: AsyncStream<AudioRecordingServiceEvent>
+
+    private var permissionContinuation: CheckedContinuation<Bool, Never>?
+    private(set) var didCancel = false
+    private(set) var startCount = 0
+
+    var hasPendingPermissionRequest: Bool {
+        permissionContinuation != nil
+    }
+
+    init() {
+        events = AsyncStream { $0.finish() }
+    }
+
+    func requestPermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            permissionContinuation = continuation
+        }
+    }
+
+    func resolvePermission(granted: Bool) {
+        permissionContinuation?.resume(returning: granted)
+        permissionContinuation = nil
+    }
+
+    func start() async throws {
+        startCount += 1
+    }
+
+    func stop() async throws -> AudioRecording {
+        AudioRecording(data: Data(), duration: 1)
+    }
+
+    func cancel() async {
+        didCancel = true
+    }
+
+    func meterLevel() -> AudioMeterLevel { .silence }
 }

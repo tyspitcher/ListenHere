@@ -36,6 +36,14 @@ final class SwiftDataMemoryRepository: MemoryRepository {
         return makeSummary(memory)
     }
 
+    func fetchRecentlyDeletedMemory(id: UUID) async throws -> MemorySummary? {
+        try Task.checkCancellation()
+        guard let memory = try fetchMemory(id: id), memory.isRecentlyDeleted else {
+            return nil
+        }
+        return makeSummary(memory)
+    }
+
     func fetchActiveMemories(journalID: UUID) async throws -> [MemorySummary] {
         try Task.checkCancellation()
         guard let journal = try fetchJournal(id: journalID), journal.isRecentlyDeleted == false else {
@@ -43,6 +51,17 @@ final class SwiftDataMemoryRepository: MemoryRepository {
         }
         return (journal.memories ?? [])
             .filter { $0.isRecentlyDeleted == false }
+            .sorted { $0.capturedAt > $1.capturedAt }
+            .map(makeSummary)
+    }
+
+    func fetchRecentlyDeletedMemories(journalID: UUID) async throws -> [MemorySummary] {
+        try Task.checkCancellation()
+        guard let journal = try fetchJournal(id: journalID), journal.isRecentlyDeleted else {
+            throw ListenHerePersistenceError.journalNotFound
+        }
+        return (journal.memories ?? [])
+            .filter(\.isRecentlyDeleted)
             .sorted { $0.capturedAt > $1.capturedAt }
             .map(makeSummary)
     }

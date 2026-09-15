@@ -14,12 +14,27 @@ final class MemoryDetailViewModel {
     private(set) var state: MemoryDetailState = .loading
     private(set) var photoURL: URL?
     private(set) var audioPlaybackState: AudioPlaybackState = .unavailable
+    private(set) var recoveryErrorMessage: String?
+
+    var canEdit: Bool {
+        access.permitsEditing && mediaEditor != nil
+    }
+
+    var isRecentlyDeleted: Bool {
+        access.isRecentlyDeleted
+    }
+
+    var canRecover: Bool {
+        access.isRecentlyDeleted && recoveryService != nil
+    }
 
     private let memoryID: UUID
+    private let access: MemoryDetailAccess
     private let repository: any MemoryRepository
     private let journalRepository: (any JournalRepository)?
     private let mediaStore: any ManagedMediaReading
     private let mediaEditor: (any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading)?
+    private let recoveryService: (any RecentlyDeletedRecovering)?
     private let audioPlaybackService: any AudioPlaybackServicing
     private let locationNameBackfiller: (any MemoryLocationNameBackfilling)?
     private var playbackRefreshTask: Task<Void, Never>?
@@ -27,30 +42,54 @@ final class MemoryDetailViewModel {
 
     init(
         memoryID: UUID,
+        access: MemoryDetailAccess = .active,
         repository: any MemoryRepository,
         journalRepository: (any JournalRepository)? = nil,
         mediaStore: any ManagedMediaReading,
         mediaEditor: (any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading)? = nil,
+        recoveryService: (any RecentlyDeletedRecovering)? = nil,
         audioPlaybackService: any AudioPlaybackServicing,
         locationNameBackfiller: (any MemoryLocationNameBackfilling)? = nil
     ) {
         self.memoryID = memoryID
+        self.access = access
         self.repository = repository
         self.journalRepository = journalRepository
         self.mediaStore = mediaStore
         self.mediaEditor = mediaEditor
+        self.recoveryService = recoveryService
         self.audioPlaybackService = audioPlaybackService
         self.locationNameBackfiller = locationNameBackfiller
     }
 
     func makeEditSession(for memory: MemorySummary) -> MemoryEditSessionViewModel? {
-        guard let mediaEditor else { return nil }
+        guard access.permitsEditing, let mediaEditor else { return nil }
         return MemoryEditSessionViewModel(
             memory: memory,
             repository: repository,
             journalRepository: journalRepository,
             mediaStore: mediaEditor
         )
+    }
+
+    func recover(at date: Date = Date()) -> Bool {
+        guard canRecover, let recoveryService else { return false }
+
+        do {
+            try recoveryService.recover(
+                .init(kind: .memory, modelID: memoryID),
+                at: date
+            )
+            recoveryErrorMessage = nil
+            return true
+        } catch {
+            recoveryErrorMessage = "This memory couldn’t be recovered. Please try again."
+            return false
+        }
+    }
+
+    func dismissRecoveryError() {
+        recoveryErrorMessage = nil
     }
 
     func load() async {
@@ -60,11 +99,13 @@ final class MemoryDetailViewModel {
         photoURL = nil
         audioPlaybackState = .unavailable
         do {
-            if let memory = try await repository.fetchActiveMemory(id: memoryID) {
+            if let memory = try await loadMemory() {
                 guard Task.isCancelled == false else { return }
                 state = .loaded(memory)
                 await loadManagedMedia(for: memory)
-                startLocationNameBackfill(for: memory)
+                if access.permitsEditing {
+                    startLocationNameBackfill(for: memory)
+                }
             } else {
                 state = .unavailable
             }
@@ -121,6 +162,15 @@ final class MemoryDetailViewModel {
             audioPlaybackState = .ready(duration: currentAudioDuration)
         } catch {
             audioPlaybackState = .unavailable
+        }
+    }
+
+    private func loadMemory() async throws -> MemorySummary? {
+        switch access {
+        case .active:
+            try await repository.fetchActiveMemory(id: memoryID)
+        case .recentlyDeleted:
+            try await repository.fetchRecentlyDeletedMemory(id: memoryID)
         }
     }
 

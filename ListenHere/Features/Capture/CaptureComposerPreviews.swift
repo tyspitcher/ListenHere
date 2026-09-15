@@ -85,8 +85,10 @@ private struct CaptureComposerPreview: View {
 
         let photoData = UIImage(named: "BeachMemory")?.pngData() ?? Data("photo".utf8)
         let waveform = (0..<48).map { index in
-            0.18 + (sin(Double(index) * 0.7) + 1) * 0.32
+            let average = 0.18 + (sin(Double(index) * 0.7) + 1) * 0.32
+            return AudioMeterLevel(average: average, peak: min(1, average + 0.18))
         }
+        let playbackWaveform = waveform.map(\.average)
 
         switch mode {
         case .empty:
@@ -95,13 +97,13 @@ private struct CaptureComposerPreview: View {
             capture.importPhoto(photoData, preferredFileExtension: "png")
         case .sound:
             addPreviewAudio(to: capture)
-            preview.setPreviewState(playbackState: .ready(duration: 18), samples: waveform)
+            preview.setPreviewState(playbackState: .ready(duration: 18), samples: playbackWaveform)
         case .both:
             capture.importPhoto(photoData, preferredFileExtension: "png")
             addPreviewAudio(to: capture)
             capture.updateTitle("Harbor at Low Tide")
             capture.updateCaption("Water folding softly against the dock.")
-            preview.setPreviewState(playbackState: .paused(elapsed: 6, duration: 18), samples: waveform)
+            preview.setPreviewState(playbackState: .paused(elapsed: 6, duration: 18), samples: playbackWaveform)
         case .recording:
             recording.setPreviewState(.recording(elapsed: 14, levels: waveform))
         case .saving:

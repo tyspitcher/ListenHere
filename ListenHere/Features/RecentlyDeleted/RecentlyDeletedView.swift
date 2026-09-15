@@ -4,8 +4,17 @@ import SwiftUI
 struct RecentlyDeletedView: View {
     @State private var viewModel: RecentlyDeletedViewModel
 
-    init(viewModel: RecentlyDeletedViewModel) {
+    private let openMemory: (UUID) -> Void
+    private let openJournal: (UUID) -> Void
+
+    init(
+        viewModel: RecentlyDeletedViewModel,
+        openMemory: @escaping (UUID) -> Void = { _ in },
+        openJournal: @escaping (UUID) -> Void = { _ in }
+    ) {
         _viewModel = State(wrappedValue: viewModel)
+        self.openMemory = openMemory
+        self.openJournal = openJournal
     }
 
     var body: some View {
@@ -18,34 +27,22 @@ struct RecentlyDeletedView: View {
                 )
             } else {
                 List(viewModel.items) { item in
-                    RecentlyDeletedRow(item: item) {
-                        viewModel.showActions(for: item)
-                    }
+                    RecentlyDeletedRow(
+                        item: item,
+                        recover: { viewModel.recover(item) },
+                        permanentlyDelete: { viewModel.permanentlyDelete(item) },
+                        openMemory: { openMemory(item.id.modelID) },
+                        openJournal: { openJournal(item.id.modelID) },
+                        thumbnailURL: { viewModel.thumbnailURL(for: item) }
+                    )
                 }
             }
         }
         .scrollContentBackground(.hidden)
         .appScreenBackground()
         .navigationTitle("Recently Deleted")
-        .task {
+        .onAppear {
             viewModel.load()
-        }
-        .confirmationDialog(
-            viewModel.selectedItem?.title ?? "Recently Deleted Item",
-            isPresented: actionsArePresented,
-            presenting: viewModel.selectedItem
-        ) { _ in
-            Button("Recover") {
-                viewModel.recoverSelectedItem()
-            }
-            Button("Delete Permanently", role: .destructive) {
-                viewModel.permanentlyDeleteSelectedItem()
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.dismissActions()
-            }
-        } message: { _ in
-            Text("Choose whether to recover this item or delete it permanently.")
         }
         .alert("Something Went Wrong", isPresented: errorIsPresented) {
             Button("OK") {
@@ -54,17 +51,6 @@ struct RecentlyDeletedView: View {
         } message: {
             Text(viewModel.errorMessage ?? "Please try again.")
         }
-    }
-
-    private var actionsArePresented: Binding<Bool> {
-        Binding(
-            get: { viewModel.selectedItem != nil },
-            set: { isPresented in
-                if isPresented == false {
-                    viewModel.dismissActions()
-                }
-            }
-        )
     }
 
     private var errorIsPresented: Binding<Bool> {
@@ -83,16 +69,20 @@ private struct RecentlyDeletedRow: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
 
+    @State private var areActionsPresented = false
+
     let item: RecentlyDeletedItem
-    let showActions: () -> Void
+    let recover: () -> Void
+    let permanentlyDelete: () -> Void
+    let openMemory: () -> Void
+    let openJournal: () -> Void
+    let thumbnailURL: () -> URL?
 
     var body: some View {
         let palette = theme.palette(for: colorScheme)
 
         HStack(spacing: 12) {
-            Image(systemName: item.kind == .memory ? "photo.on.rectangle" : "book.closed")
-                .foregroundStyle(palette.tertiaryAccent)
-                .frame(width: 28)
+            thumbnail(palette: palette)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
@@ -104,13 +94,54 @@ private struct RecentlyDeletedRow: View {
 
             Spacer()
 
-            Button(action: showActions) {
+            Button {
+                areActionsPresented = true
+            } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Actions for \(item.title)")
             .accessibilityHint("Recover or permanently delete this item")
+            // Anchor the native confirmation dialog to the selected row's action control.
+            // This keeps it within reach on iPhone and beside the relevant item on iPad.
+            .confirmationDialog(
+                item.title,
+                isPresented: $areActionsPresented,
+                titleVisibility: .visible
+            ) {
+                Button("Recover", action: recover)
+                Button("Delete Permanently", role: .destructive, action: permanentlyDelete)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Choose whether to recover this item or delete it permanently.")
+            }
+        }
+        .contentShape(.rect)
+        .onTapGesture {
+            switch item.kind {
+            case .memory:
+                openMemory()
+            case .journal:
+                openJournal()
+            }
+        }
+        .accessibilityHint("Opens this item in read-only mode")
+    }
+
+    @ViewBuilder
+    private func thumbnail(palette: AppPalette) -> some View {
+        if item.kind == .memory, let photoURL = thumbnailURL() {
+            ManagedPhotoImageView(photoURL: photoURL, contentMode: .fill, maximumPixelSize: 160)
+                .frame(width: 64, height: 64)
+                .clipped()
+        } else {
+            Image(systemName: item.kind == .memory ? "photo.on.rectangle" : "book.closed")
+                .font(.title3)
+                .foregroundStyle(palette.tertiaryAccent)
+                .frame(width: 64, height: 64)
+                .background(palette.surface, in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityHidden(true)
         }
     }
 }

@@ -83,6 +83,22 @@ struct AllMemoriesViewModelTests {
         #expect(viewModel.managedPhotoURL(for: memory) == URL(filePath: "/in-memory/\(file.filename)"))
     }
 
+    @Test("Deleting the final memory immediately presents the empty state")
+    @MainActor
+    func deletingFinalMemoryPresentsEmptyState() async {
+        let memory = makeSummary(id: UUID(), title: "Park")
+        let repository = DeletingMemoryRepository(memories: [memory])
+        let viewModel = AllMemoriesViewModel(repository: repository)
+
+        viewModel.load()
+        await Task.yield()
+        await Task.yield()
+        viewModel.delete(memory, at: Date(timeIntervalSince1970: 1_000))
+
+        #expect(repository.deletedIDs == [memory.id])
+        #expect(viewModel.state == .loaded([]))
+    }
+
     private func makeSummary(id: UUID, title: String) -> MemorySummary {
         MemorySummary(
             id: id,
@@ -161,5 +177,31 @@ private final class ControlledMemoryRepository: MemoryRepository {
     }
     func moveToRecentlyDeleted(memoryID: UUID, at date: Date) throws {
         throw TestError.failed
+    }
+}
+
+@MainActor
+private final class DeletingMemoryRepository: MemoryRepository {
+    private var memories: [MemorySummary]
+    private(set) var deletedIDs: [UUID] = []
+
+    init(memories: [MemorySummary]) {
+        self.memories = memories
+    }
+
+    func fetchActiveMemories() async throws -> [MemorySummary] { memories }
+    func fetchActiveMemories(journalID: UUID) async throws -> [MemorySummary] { memories }
+    func fetchActiveMemory(id: UUID) async throws -> MemorySummary? {
+        memories.first(where: { $0.id == id })
+    }
+    func createMemory(from draft: MemoryDraft, origin: MemoryCreationOrigin) throws -> Memory {
+        throw TestError.failed
+    }
+    func updateJournalAssignments(memoryID: UUID, journalIDs: Set<UUID>) throws {
+        throw TestError.failed
+    }
+    func moveToRecentlyDeleted(memoryID: UUID, at date: Date) throws {
+        deletedIDs.append(memoryID)
+        memories.removeAll { $0.id == memoryID }
     }
 }

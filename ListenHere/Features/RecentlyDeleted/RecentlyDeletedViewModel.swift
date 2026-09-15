@@ -7,56 +7,46 @@ import Observation
 final class RecentlyDeletedViewModel {
     private(set) var items: [RecentlyDeletedItem] = []
     private(set) var errorMessage: String?
-    var selectedItem: RecentlyDeletedItem?
 
     private let repository: any RecentlyDeletedRepository
+    private let mediaReader: (any ManagedMediaReading)?
+    private var memoryThumbnailURLs: [RecentlyDeletedItem.ID: URL] = [:]
 
-    init(repository: any RecentlyDeletedRepository) {
+    init(
+        repository: any RecentlyDeletedRepository,
+        mediaReader: (any ManagedMediaReading)? = nil
+    ) {
         self.repository = repository
+        self.mediaReader = mediaReader
     }
 
     func load(at referenceDate: Date = Date()) {
         do {
             try repository.purgeExpiredItems(at: referenceDate)
             items = try repository.fetchItems()
+            resolveMemoryThumbnailURLs()
             errorMessage = nil
         } catch {
             errorMessage = "Recently Deleted couldn’t be loaded. Please try again."
         }
     }
 
-    func showActions(for item: RecentlyDeletedItem) {
-        selectedItem = item
-    }
-
-    func dismissActions() {
-        selectedItem = nil
-    }
-
-    func recoverSelectedItem(at date: Date = Date()) {
-        guard let selectedItem else {
-            return
-        }
-
+    func recover(_ item: RecentlyDeletedItem, at date: Date = Date()) {
         do {
-            try repository.recover(selectedItem.id, at: date)
-            self.selectedItem = nil
+            try repository.recover(item.id, at: date)
             items = try repository.fetchItems()
+            resolveMemoryThumbnailURLs()
             errorMessage = nil
         } catch {
             errorMessage = "This item couldn’t be recovered. Please try again."
         }
     }
 
-    func permanentlyDeleteSelectedItem() {
-        guard let selectedItem else {
-            return
-        }
-
+    func permanentlyDelete(_ item: RecentlyDeletedItem) {
         do {
-            try repository.permanentlyDelete(selectedItem.id)
-            self.selectedItem = nil
+            try repository.permanentlyDelete(item.id)
             items = try repository.fetchItems()
+            resolveMemoryThumbnailURLs()
             errorMessage = nil
         } catch {
             errorMessage = "This item couldn’t be permanently deleted. Please try again."
@@ -65,5 +55,23 @@ final class RecentlyDeletedViewModel {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    func thumbnailURL(for item: RecentlyDeletedItem) -> URL? {
+        memoryThumbnailURLs[item.id]
+    }
+
+    private func resolveMemoryThumbnailURLs() {
+        memoryThumbnailURLs = Dictionary(
+            uniqueKeysWithValues: items.compactMap { item in
+                guard item.kind == .memory,
+                      let filename = item.photoFilename,
+                      let mediaReader,
+                      let url = try? mediaReader.fileURL(for: filename) else {
+                    return nil
+                }
+                return (item.id, url)
+            }
+        )
     }
 }

@@ -44,6 +44,9 @@ struct CaptureSoundTile: View {
         case .requestingPermission:
             ProgressView("Requesting Access")
                 .frame(maxWidth: .infinity, minHeight: 180)
+        case .preparingRecording:
+            ProgressView("Preparing Recording")
+                .frame(maxWidth: .infinity, minHeight: 180)
         case .finalizing:
             ProgressView("Adding Sound")
                 .frame(maxWidth: .infinity, minHeight: 180)
@@ -82,8 +85,7 @@ struct CaptureSoundTile: View {
                 Text(recordingViewModel.elapsedDescription)
                     .font(.title3.monospacedDigit())
                 AudioWaveformView(
-                    samples: recordingViewModel.levels,
-                    progress: 1,
+                    liveSamples: recordingViewModel.levels,
                     tint: .white
                 )
                 .frame(height: 42)

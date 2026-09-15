@@ -57,7 +57,7 @@ final class AllMemoriesViewModel {
     func delete(_ memory: MemorySummary, at date: Date = Date()) {
         do {
             try repository.moveToRecentlyDeleted(memoryID: memory.id, at: date)
-            load()
+            removeDeletedMemoryFromPresentation(memory)
         } catch {
             state = .failed("This memory couldn’t be moved to Recently Deleted.")
         }
@@ -79,6 +79,18 @@ final class AllMemoriesViewModel {
                 return (memory.id, url)
             }
         )
+    }
+
+    private func removeDeletedMemoryFromPresentation(_ memory: MemorySummary) {
+        locationNameBackfillTask?.cancel()
+        managedPhotoURLs[memory.id] = nil
+
+        guard case .loaded(let memories) = state else {
+            load()
+            return
+        }
+
+        state = .loaded(memories.filter { $0.id != memory.id })
     }
 
     private func startLocationNameBackfill(for memories: [MemorySummary]) {

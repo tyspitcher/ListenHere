@@ -2,6 +2,7 @@
 import SwiftUI
 
 struct MemoryDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: MemoryDetailViewModel
     @State private var editSession: MemoryEditSessionViewModel?
     private let makeVoiceRecordingViewModel: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
@@ -25,6 +26,8 @@ struct MemoryDetailView: View {
                     memory: memory,
                     photoURL: viewModel.photoURL,
                     audioPlaybackState: viewModel.audioPlaybackState,
+                    isRecentlyDeleted: viewModel.isRecentlyDeleted,
+                    recoverMemory: recoverMemory,
                     togglePlayback: viewModel.togglePlayback
                 )
             case .unavailable:
@@ -38,10 +41,10 @@ struct MemoryDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle(navigationTitle)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if case .loaded(let memory) = viewModel.state {
+            if case .loaded(let memory) = viewModel.state, viewModel.canEdit {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Edit", systemImage: "pencil") {
                         editSession = viewModel.makeEditSession(for: memory)
@@ -58,6 +61,11 @@ struct MemoryDetailView: View {
                 await viewModel.load()
             }
         }
+        .alert("Couldn’t Recover Memory", isPresented: recoveryErrorIsPresented) {
+            Button("OK", action: viewModel.dismissRecoveryError)
+        } message: {
+            Text(viewModel.recoveryErrorMessage ?? "Please try again.")
+        }
         .task { await viewModel.load() }
         .onDisappear {
             Task { await viewModel.stopPlayback() }
@@ -65,8 +73,20 @@ struct MemoryDetailView: View {
         .appScreenBackground()
     }
 
-    private var navigationTitle: String {
-        guard case .loaded(let memory) = viewModel.state else { return "Memory" }
-        return memory.title
+    private var recoveryErrorIsPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.recoveryErrorMessage != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    viewModel.dismissRecoveryError()
+                }
+            }
+        )
+    }
+
+    private func recoverMemory() {
+        if viewModel.recover() {
+            dismiss()
+        }
     }
 }

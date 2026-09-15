@@ -164,6 +164,28 @@ struct SwiftDataJournalRepositoryTests {
         #expect(journal.deletionBatchID == memory.deletionBatchID)
     }
 
+    @Test("A deleted journal can be loaded for read-only browsing")
+    @MainActor
+    func recentlyDeletedJournalCanBeFetched() async throws {
+        let setup = try makeSetup()
+        let journal = try setup.repository.createJournal(name: "Trip", at: .init(timeIntervalSince1970: 1))
+        let memory = Memory(capturedAt: .init(timeIntervalSince1970: 2), photoFilename: "photo.heic")
+        setup.context.insert(memory)
+        journal.add(memory)
+        try setup.context.save()
+
+        try setup.repository.moveToRecentlyDeleted(
+            journalID: journal.id,
+            strategy: .moveContainedMemoriesToRecentlyDeleted,
+            at: .init(timeIntervalSince1970: 3)
+        )
+
+        let summary = try #require(await setup.repository.fetchRecentlyDeletedJournal(id: journal.id))
+
+        #expect(summary.name == "Trip")
+        #expect(summary.memoryCount == 1)
+    }
+
     @Test("Deleting a journal and its memories also deletes memories shared elsewhere")
     @MainActor
     func deletionIncludesSharedMemories() throws {

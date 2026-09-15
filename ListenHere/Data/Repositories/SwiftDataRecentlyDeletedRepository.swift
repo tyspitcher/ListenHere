@@ -172,7 +172,8 @@ final class SwiftDataRecentlyDeletedRepository: RecentlyDeletedRepository {
             id: .init(kind: .memory, modelID: memory.id),
             title: title,
             deletedAt: deletedAt,
-            expiresAt: RecentlyDeletedPolicy.expirationDate(for: deletedAt)
+            expiresAt: RecentlyDeletedPolicy.expirationDate(for: deletedAt),
+            photoFilename: memory.photoFilename
         )
     }
 

@@ -222,7 +222,7 @@ final class PreviewAudioRecordingService: AudioRecordingServicing {
     }
 
     func cancel() async {}
-    func normalizedMeterLevel() -> Double { 0 }
+    func meterLevel() -> AudioMeterLevel { .silence }
 }
 
 @MainActor

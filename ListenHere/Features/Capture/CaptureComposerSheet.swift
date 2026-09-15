@@ -117,8 +117,12 @@ struct CaptureComposerSheet: View {
             if let notice { currentAlert = .recordingNotice(notice) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active {
-                Task { await recordingViewModel.stopForLifecycleEvent() }
+            Task {
+                if phase == .active {
+                    await recordingViewModel.applicationDidBecomeActive()
+                } else {
+                    await recordingViewModel.applicationDidBecomeInactive()
+                }
             }
         }
         .confirmationDialog(

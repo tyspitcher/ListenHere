@@ -15,14 +15,50 @@ struct RecentlyDeletedViewModelTests {
         let repository = RecentlyDeletedRepositoryStub(items: [item])
         let viewModel = RecentlyDeletedViewModel(repository: repository)
         viewModel.load(at: Date(timeIntervalSince1970: 1_500))
-        viewModel.showActions(for: item)
-
-        viewModel.recoverSelectedItem(at: Date(timeIntervalSince1970: 1_600))
+        viewModel.recover(item, at: Date(timeIntervalSince1970: 1_600))
 
         #expect(repository.recoveredIDs == [item.id])
         #expect(viewModel.items.isEmpty)
-        #expect(viewModel.selectedItem == nil)
     }
+
+    @Test("Deleted memory thumbnails resolve only through the managed-media boundary")
+    @MainActor
+    func resolvesMemoryThumbnail() {
+        let item = RecentlyDeletedItem(
+            id: .init(kind: .memory, modelID: UUID()),
+            title: "Park",
+            deletedAt: Date(timeIntervalSince1970: 1_000),
+            expiresAt: Date(timeIntervalSince1970: 2_000),
+            photoFilename: "photos/park.heic"
+        )
+        let photoURL = URL(filePath: "/managed/photos/park.heic")
+        let viewModel = RecentlyDeletedViewModel(
+            repository: RecentlyDeletedRepositoryStub(items: [item]),
+            mediaReader: RecentlyDeletedMediaReaderStub(urls: ["photos/park.heic": photoURL])
+        )
+
+        viewModel.load(at: Date(timeIntervalSince1970: 1_500))
+
+        #expect(viewModel.thumbnailURL(for: item) == photoURL)
+    }
+}
+
+@MainActor
+private final class RecentlyDeletedMediaReaderStub: ManagedMediaReading {
+    private let urls: [String: URL]
+
+    init(urls: [String: URL]) {
+        self.urls = urls
+    }
+
+    func fileURL(for filename: String) throws -> URL {
+        guard let url = urls[filename] else { throw RecentlyDeletedMediaReaderError.missingFile }
+        return url
+    }
+}
+
+private enum RecentlyDeletedMediaReaderError: Error {
+    case missingFile
 }
 
 @MainActor

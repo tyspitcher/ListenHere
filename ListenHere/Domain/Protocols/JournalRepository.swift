@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 protocol JournalRepository {
     func fetchActiveJournals() async throws -> [JournalSummary]
+    func fetchRecentlyDeletedJournal(id: UUID) async throws -> JournalSummary?
     func createJournal(name: String, at date: Date) throws -> Journal
     func renameJournal(id: UUID, name: String, at date: Date) throws
     func setDefaultJournal(id: UUID, at date: Date) throws
@@ -13,4 +14,10 @@ protocol JournalRepository {
         strategy: JournalDeletionStrategy,
         at date: Date
     ) throws
+}
+
+extension JournalRepository {
+    func fetchRecentlyDeletedJournal(id: UUID) async throws -> JournalSummary? {
+        nil
+    }
 }

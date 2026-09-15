@@ -106,27 +106,37 @@ final class AppContainer {
         )
     }
 
-    func makeJournalDetailViewModel(journalID: UUID) -> JournalDetailViewModel {
+    func makeJournalDetailViewModel(
+        journalID: UUID,
+        access: JournalDetailAccess = .active
+    ) -> JournalDetailViewModel {
         JournalDetailViewModel(
             journalID: journalID,
+            access: access,
             repository: memoryRepository,
             journalRepository: journalRepository,
             mediaReader: mediaStore,
-            locationNameBackfiller: makeLocationNameBackfiller()
+            locationNameBackfiller: makeLocationNameBackfiller(),
+            recoveryService: recentlyDeletedRepository
         )
     }
 
     func makeRecentlyDeletedViewModel() -> RecentlyDeletedViewModel {
-        RecentlyDeletedViewModel(repository: recentlyDeletedRepository)
+        RecentlyDeletedViewModel(repository: recentlyDeletedRepository, mediaReader: mediaStore)
     }
 
-    func makeMemoryDetailViewModel(memoryID: UUID) -> MemoryDetailViewModel {
+    func makeMemoryDetailViewModel(
+        memoryID: UUID,
+        access: MemoryDetailAccess = .active
+    ) -> MemoryDetailViewModel {
         MemoryDetailViewModel(
             memoryID: memoryID,
+            access: access,
             repository: memoryRepository,
             journalRepository: journalRepository,
             mediaStore: mediaStore,
             mediaEditor: mediaStore,
+            recoveryService: recentlyDeletedRepository,
             audioPlaybackService: audioPlaybackServiceFactory(),
             locationNameBackfiller: makeLocationNameBackfiller()
         )

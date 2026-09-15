@@ -41,6 +41,16 @@ final class AppRouter {
                     path = []
                     return
                 }
+            case .recentlyDeletedMemory(let id):
+                guard (try? await memoryRepository.fetchRecentlyDeletedMemory(id: id)) != nil else {
+                    path = []
+                    return
+                }
+            case .recentlyDeletedJournal(let id):
+                guard (try? await journalRepository.fetchRecentlyDeletedJournal(id: id)) != nil else {
+                    path = []
+                    return
+                }
             case .journal(let id):
                 guard activeJournalIDs.contains(id) else {
                     path = []

@@ -7,6 +7,13 @@ enum AudioRecordingServiceEvent: Sendable {
     case routeChanged
 }
 
+struct AudioMeterLevel: Equatable, Sendable {
+    let average: Double
+    let peak: Double
+
+    static let silence = AudioMeterLevel(average: 0, peak: 0)
+}
+
 @MainActor
 protocol AudioRecordingServicing: AnyObject {
     var events: AsyncStream<AudioRecordingServiceEvent> { get }
@@ -15,5 +22,5 @@ protocol AudioRecordingServicing: AnyObject {
     func start() async throws
     func stop() async throws -> AudioRecording
     func cancel() async
-    func normalizedMeterLevel() -> Double
+    func meterLevel() -> AudioMeterLevel
 }

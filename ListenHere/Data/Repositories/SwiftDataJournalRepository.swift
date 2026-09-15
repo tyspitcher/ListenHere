@@ -24,6 +24,20 @@ final class SwiftDataJournalRepository: JournalRepository {
         }
     }
 
+    func fetchRecentlyDeletedJournal(id: UUID) async throws -> JournalSummary? {
+        try Task.checkCancellation()
+        guard let journal = try fetchJournal(id: id), journal.isRecentlyDeleted else {
+            return nil
+        }
+        return JournalSummary(
+            id: journal.id,
+            name: journal.name,
+            memoryCount: (journal.memories ?? []).count(where: \.isRecentlyDeleted),
+            isDefault: false,
+            isSystemUnassigned: journal.isSystemUnassigned
+        )
+    }
+
     func createJournal(name: String, at date: Date = Date()) throws -> Journal {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedName.isEmpty == false else {

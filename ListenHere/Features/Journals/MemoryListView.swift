@@ -2,9 +2,9 @@
 import SwiftUI
 
 struct MemoryListView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: JournalDetailViewModel
     @State private var captureViewModel: CaptureViewModel?
-    @State private var memoryPendingDeletion: MemorySummary?
     @State private var editSession: MemoryEditSessionViewModel?
     @State private var journalAssignmentViewModel: MemoryJournalAssignmentViewModel?
 
@@ -48,14 +48,14 @@ struct MemoryListView: View {
             case .unavailable:
                 ContentUnavailableView("Journal Unavailable", systemImage: "book.closed")
             case .loaded(let memories) where memories.isEmpty:
-                ContentUnavailableView(
-                    "No Memories",
-                    systemImage: "photo.on.rectangle",
-                    description: Text("Memories assigned to this journal will appear here.")
-                )
+                emptyContent
             case .loaded(let memories):
                 ScrollView {
                     LazyVStack(spacing: 22) {
+                        if viewModel.isRecentlyDeleted {
+                            DeletedJournalNotice(recover: recoverJournal)
+                        }
+
                         ForEach(memories) { memory in
                             MemoryCardRowView(
                                 memory: memory,
@@ -65,7 +65,8 @@ struct MemoryListView: View {
                                 chooseJournals: {
                                     journalAssignmentViewModel = makeMemoryJournalAssignmentViewModel(memory)
                                 },
-                                delete: { memoryPendingDeletion = memory }
+                                delete: { viewModel.delete(memory) },
+                                showsActions: viewModel.canEdit
                             )
                         }
                     }
@@ -77,8 +78,10 @@ struct MemoryListView: View {
         }
         .navigationTitle(viewModel.journalTitle)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("New Memory", systemImage: "plus", action: presentCapture)
+            if viewModel.canEdit {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("New Memory", systemImage: "plus", action: presentCapture)
+                }
             }
         }
         .sheet(item: $captureViewModel) { captureViewModel in
@@ -106,25 +109,15 @@ struct MemoryListView: View {
                 Task { await viewModel.load() }
             }
         }
-        .confirmationDialog(
-            "Delete Memory?",
-            isPresented: deletionIsPresented,
-            presenting: memoryPendingDeletion
-        ) { memory in
-            Button("Move to Recently Deleted", role: .destructive) {
-                viewModel.delete(memory)
-                memoryPendingDeletion = nil
-            }
-            Button("Cancel", role: .cancel) {
-                memoryPendingDeletion = nil
-            }
-        } message: { _ in
-            Text("You can recover this memory for 30 days.")
-        }
         .alert("Couldn’t Delete Memory", isPresented: deletionErrorIsPresented) {
             Button("OK", action: viewModel.dismissDeletionError)
         } message: {
             Text(viewModel.deletionErrorMessage ?? "Please try again.")
+        }
+        .alert("Couldn’t Recover Journal", isPresented: recoveryErrorIsPresented) {
+            Button("OK", action: viewModel.dismissRecoveryError)
+        } message: {
+            Text(viewModel.recoveryErrorMessage ?? "Please try again.")
         }
         .task { await viewModel.load() }
         .appScreenBackground()
@@ -134,22 +127,44 @@ struct MemoryListView: View {
         captureViewModel = makeCaptureViewModel()
     }
 
+    @ViewBuilder
+    private var emptyContent: some View {
+        VStack(spacing: 20) {
+            if viewModel.isRecentlyDeleted {
+                DeletedJournalNotice(recover: recoverJournal)
+            }
+            ContentUnavailableView(
+                "No Memories",
+                systemImage: "photo.on.rectangle",
+                description: Text("Memories assigned to this journal will appear here.")
+            )
+        }
+    }
+
+    private func recoverJournal() {
+        if viewModel.recover() {
+            dismiss()
+        }
+    }
+
     private func finishCapture() {
         captureViewModel = nil
         Task { await viewModel.load() }
-    }
-
-    private var deletionIsPresented: Binding<Bool> {
-        Binding(
-            get: { memoryPendingDeletion != nil },
-            set: { if $0 == false { memoryPendingDeletion = nil } }
-        )
     }
 
     private var deletionErrorIsPresented: Binding<Bool> {
         Binding(
             get: { viewModel.deletionErrorMessage != nil },
             set: { if $0 == false { viewModel.dismissDeletionError() } }
+        )
+    }
+
+    private var recoveryErrorIsPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.recoveryErrorMessage != nil },
+            set: { isPresented in
+                if isPresented == false { viewModel.dismissRecoveryError() }
+            }
         )
     }
 }

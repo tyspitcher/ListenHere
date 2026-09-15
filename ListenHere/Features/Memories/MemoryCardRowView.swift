@@ -13,6 +13,7 @@ struct MemoryCardRowView: View {
     let edit: () -> Void
     let chooseJournals: () -> Void
     let delete: () -> Void
+    var showsActions = true
 
     var body: some View {
         let palette = theme.palette(for: colorScheme)
@@ -23,7 +24,8 @@ struct MemoryCardRowView: View {
             open: open,
             edit: edit,
             chooseJournals: chooseJournals,
-            delete: delete
+            delete: delete,
+            showsActions: showsActions
         )
         .padding(14)
         .frame(maxWidth: maximumCardWidth, alignment: .leading)

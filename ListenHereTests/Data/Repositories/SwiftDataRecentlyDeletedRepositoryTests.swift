@@ -94,6 +94,23 @@ struct SwiftDataRecentlyDeletedRepositoryTests {
         #expect(try setup.context.fetch(FetchDescriptor<Memory>()).isEmpty)
     }
 
+    @Test("Deleted memory list items retain their managed photo filename")
+    @MainActor
+    func deletedMemoryItemContainsPhotoFilename() throws {
+        let setup = try makeSetup()
+        let memory = Memory(
+            capturedAt: Date(timeIntervalSince1970: 1_000),
+            photoFilename: "photos/park.heic"
+        )
+        setup.context.insert(memory)
+        memory.moveToRecentlyDeleted(at: Date(timeIntervalSince1970: 2_000))
+        try setup.context.save()
+
+        let item = try #require(setup.repository.fetchItems().first)
+
+        #expect(item.photoFilename == "photos/park.heic")
+    }
+
     @MainActor
     private func makeSetup() throws -> (
         context: ModelContext,

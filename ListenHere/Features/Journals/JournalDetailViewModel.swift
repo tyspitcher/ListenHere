@@ -14,42 +14,53 @@ enum JournalDetailState: Equatable {
 final class JournalDetailViewModel {
     private(set) var state: JournalDetailState = .loading
     private(set) var deletionErrorMessage: String?
+    private(set) var recoveryErrorMessage: String?
     private(set) var journalTitle = "Journal"
 
+    var isRecentlyDeleted: Bool { access == .recentlyDeleted }
+    var canEdit: Bool { access.permitsEditing }
+
     private let journalID: UUID
+    private let access: JournalDetailAccess
     private let repository: any MemoryRepository
     private let journalRepository: (any JournalRepository)?
     private let mediaReader: (any ManagedMediaReading)?
     private let locationNameBackfiller: (any MemoryLocationNameBackfilling)?
+    private let recoveryService: (any RecentlyDeletedRecovering)?
     private var managedPhotoURLs: [MemorySummary.ID: URL] = [:]
     private var locationNameBackfillTask: Task<Void, Never>?
 
     init(
         journalID: UUID,
+        access: JournalDetailAccess = .active,
         repository: any MemoryRepository,
         journalRepository: (any JournalRepository)? = nil,
         mediaReader: (any ManagedMediaReading)? = nil,
-        locationNameBackfiller: (any MemoryLocationNameBackfilling)? = nil
+        locationNameBackfiller: (any MemoryLocationNameBackfilling)? = nil,
+        recoveryService: (any RecentlyDeletedRecovering)? = nil
     ) {
         self.journalID = journalID
+        self.access = access
         self.repository = repository
         self.journalRepository = journalRepository
         self.mediaReader = mediaReader
         self.locationNameBackfiller = locationNameBackfiller
+        self.recoveryService = recoveryService
     }
 
     func load() async {
         locationNameBackfillTask?.cancel()
         state = .loading
         do {
-            let memories = try await repository.fetchActiveMemories(journalID: journalID)
-            if let journal = try? await journalRepository?.fetchActiveJournals()
-                .first(where: { $0.id == journalID }) {
+            let memories = try await loadMemories()
+            if let journal = try await loadJournal() {
                 journalTitle = journal.name
             }
             managedPhotoURLs = resolveManagedPhotoURLs(in: memories)
             state = .loaded(memories)
-            startLocationNameBackfill(for: memories)
+            if canEdit {
+                startLocationNameBackfill(for: memories)
+            }
         } catch is CancellationError {
             return
         } catch {
@@ -72,6 +83,41 @@ final class JournalDetailViewModel {
 
     func dismissDeletionError() {
         deletionErrorMessage = nil
+    }
+
+    func recover(at date: Date = Date()) -> Bool {
+        guard access == .recentlyDeleted, let recoveryService else { return false }
+        do {
+            try recoveryService.recover(.init(kind: .journal, modelID: journalID), at: date)
+            recoveryErrorMessage = nil
+            return true
+        } catch {
+            recoveryErrorMessage = "This journal couldn’t be recovered. Please try again."
+            return false
+        }
+    }
+
+    func dismissRecoveryError() {
+        recoveryErrorMessage = nil
+    }
+
+    private func loadMemories() async throws -> [MemorySummary] {
+        switch access {
+        case .active:
+            try await repository.fetchActiveMemories(journalID: journalID)
+        case .recentlyDeleted:
+            try await repository.fetchRecentlyDeletedMemories(journalID: journalID)
+        }
+    }
+
+    private func loadJournal() async throws -> JournalSummary? {
+        switch access {
+        case .active:
+            return try await journalRepository?.fetchActiveJournals()
+                .first(where: { $0.id == journalID })
+        case .recentlyDeleted:
+            return try await journalRepository?.fetchRecentlyDeletedJournal(id: journalID)
+        }
     }
 
     private func resolveManagedPhotoURLs(in memories: [MemorySummary]) -> [MemorySummary.ID: URL] {

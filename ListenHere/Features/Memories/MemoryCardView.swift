@@ -12,6 +12,7 @@ struct MemoryCardView: View {
     let edit: () -> Void
     let chooseJournals: () -> Void
     let delete: () -> Void
+    var showsActions = true
 
     var body: some View {
         let palette = theme.palette(for: colorScheme)
@@ -27,11 +28,14 @@ struct MemoryCardView: View {
 
                     Spacer(minLength: 0)
 
-                    MemoryCardActionMenu(
-                        edit: edit,
-                        chooseJournals: chooseJournals,
-                        delete: delete
-                    )
+                    if showsActions {
+                        MemoryCardActionMenu(
+                            memoryTitle: memory.title,
+                            edit: edit,
+                            chooseJournals: chooseJournals,
+                            delete: delete
+                        )
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {

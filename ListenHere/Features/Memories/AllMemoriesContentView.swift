@@ -19,7 +19,7 @@ struct AllMemoriesContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded(let memories) where memories.isEmpty:
                 ContentUnavailableView {
-                    Label("No Memories Yet", systemImage: "photo.on.rectangle.angled")
+                    Label("No Memories", systemImage: "photo.on.rectangle.angled")
                 } description: {
                     Text("Capture a photo, a sound, or both to hold on to this moment.")
                 } actions: {

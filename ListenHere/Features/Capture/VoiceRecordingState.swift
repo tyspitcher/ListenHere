@@ -5,7 +5,8 @@ import Foundation
 enum VoiceRecordingState: Equatable {
     case idle
     case requestingPermission
-    case recording(elapsed: TimeInterval, levels: [Double])
+    case preparingRecording
+    case recording(elapsed: TimeInterval, levels: [AudioMeterLevel])
     case finalizing
     case failed(VoiceRecordingFailure)
 }

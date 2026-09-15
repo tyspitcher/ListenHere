@@ -6,7 +6,6 @@ import SwiftUI
 struct AllMemoriesView: View {
     @State private var viewModel: AllMemoriesViewModel
     @State private var captureViewModel: CaptureViewModel?
-    @State private var memoryPendingDeletion: MemorySummary?
     @State private var editSession: MemoryEditSessionViewModel?
     @State private var journalAssignmentViewModel: MemoryJournalAssignmentViewModel?
 
@@ -52,7 +51,7 @@ struct AllMemoriesView: View {
             viewModel: viewModel,
             openMemory: openMemory,
             presentCapture: presentCapture,
-            requestDeletion: { memoryPendingDeletion = $0 },
+            requestDeletion: { viewModel.delete($0) },
             presentEdit: { editSession = makeMemoryEditSession($0) },
             presentJournalAssignment: { journalAssignmentViewModel = makeMemoryJournalAssignmentViewModel($0) }
         )
@@ -98,28 +97,6 @@ struct AllMemoriesView: View {
                 viewModel.load()
             }
         }
-        .confirmationDialog(
-            "Delete Memory?",
-            isPresented: deletionIsPresented,
-            presenting: memoryPendingDeletion
-        ) { memory in
-            Button("Move to Recently Deleted", role: .destructive) {
-                viewModel.delete(memory)
-                memoryPendingDeletion = nil
-            }
-            Button("Cancel", role: .cancel) {
-                memoryPendingDeletion = nil
-            }
-        } message: { _ in
-            Text("You can recover this memory for 30 days.")
-        }
-    }
-
-    private var deletionIsPresented: Binding<Bool> {
-        Binding(
-            get: { memoryPendingDeletion != nil },
-            set: { if $0 == false { memoryPendingDeletion = nil } }
-        )
     }
 
     private func presentCapture() {

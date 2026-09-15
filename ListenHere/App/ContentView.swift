@@ -86,11 +86,50 @@ struct ContentView: View {
                 openMemory: { container.router.push(.memory($0)) }
             )
         case .recentlyDeleted:
-            RecentlyDeletedView(viewModel: container.makeRecentlyDeletedViewModel())
+            RecentlyDeletedView(
+                viewModel: container.makeRecentlyDeletedViewModel(),
+                openMemory: { container.router.push(.recentlyDeletedMemory($0)) },
+                openJournal: { container.router.push(.recentlyDeletedJournal($0)) }
+            )
         case .memory(let id):
             MemoryDetailView(
                 viewModel: container.makeMemoryDetailViewModel(memoryID: id),
                 makeVoiceRecordingViewModel: { editSession in
+                    container.makeVoiceRecordingViewModel(editSession: editSession)
+                },
+                makeLocationPickerViewModel: container.makeLocationPickerViewModel
+            )
+        case .recentlyDeletedMemory(let id):
+            MemoryDetailView(
+                viewModel: container.makeMemoryDetailViewModel(
+                    memoryID: id,
+                    access: .recentlyDeleted
+                ),
+                makeVoiceRecordingViewModel: { editSession in
+                    container.makeVoiceRecordingViewModel(editSession: editSession)
+                },
+                makeLocationPickerViewModel: container.makeLocationPickerViewModel
+            )
+        case .recentlyDeletedJournal(let id):
+            MemoryListView(
+                viewModel: container.makeJournalDetailViewModel(
+                    journalID: id,
+                    access: .recentlyDeleted
+                ),
+                openMemory: { container.router.push(.recentlyDeletedMemory($0)) },
+                makeCaptureViewModel: {
+                    container.makeCaptureViewModel(origin: .journal(id))
+                },
+                makeVoiceRecordingViewModel: { captureViewModel in
+                    container.makeVoiceRecordingViewModel(captureViewModel: captureViewModel)
+                },
+                makeCaptureMediaPreviewViewModel: { captureViewModel in
+                    container.makeCaptureMediaPreviewViewModel(captureViewModel: captureViewModel)
+                },
+                makeCameraCaptureViewModel: container.makeCameraCaptureViewModel,
+                makeMemoryEditSession: container.makeMemoryEditSession,
+                makeMemoryJournalAssignmentViewModel: container.makeMemoryJournalAssignmentViewModel,
+                makeVoiceRecordingViewModelForEditing: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
                 },
                 makeLocationPickerViewModel: container.makeLocationPickerViewModel

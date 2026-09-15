@@ -60,6 +60,48 @@ struct MemoryDetailViewModelTests {
         #expect(viewModel.audioPlaybackState == .paused(elapsed: 0, duration: 12))
     }
 
+    @Test("Recently deleted memories load without allowing an edit session")
+    func recentlyDeletedMemoryIsReadOnly() async {
+        let memory = makeMemory()
+        let mediaStore = InMemoryManagedMediaStore()
+        let viewModel = MemoryDetailViewModel(
+            memoryID: memory.id,
+            access: .recentlyDeleted,
+            repository: MemoryDetailRepositoryStub(
+                memory: nil,
+                recentlyDeletedMemory: memory
+            ),
+            mediaStore: mediaStore,
+            mediaEditor: mediaStore,
+            audioPlaybackService: AudioPlaybackServiceStub(duration: 12)
+        )
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .loaded(memory))
+        #expect(viewModel.canEdit == false)
+        #expect(viewModel.makeEditSession(for: memory) == nil)
+    }
+
+    @Test("Recently deleted detail recovers its memory through the recovery capability")
+    func recentlyDeletedMemoryRecovers() {
+        let memory = makeMemory()
+        let recoveryService = RecoveryServiceStub()
+        let viewModel = MemoryDetailViewModel(
+            memoryID: memory.id,
+            access: .recentlyDeleted,
+            repository: MemoryDetailRepositoryStub(memory: nil),
+            mediaStore: ManagedMediaReaderStub(urls: [:]),
+            recoveryService: recoveryService,
+            audioPlaybackService: AudioPlaybackServiceStub(duration: 12)
+        )
+
+        let didRecover = viewModel.recover(at: Date(timeIntervalSince1970: 1_000))
+
+        #expect(didRecover)
+        #expect(recoveryService.recoveredIDs == [.init(kind: .memory, modelID: memory.id)])
+    }
+
     @Test("Pausing preserves the current elapsed time")
     func pausingPreservesElapsedTime() async {
         let audioURL = URL(filePath: "/tmp/audio/morning.m4a")
@@ -99,14 +141,19 @@ struct MemoryDetailViewModelTests {
 @MainActor
 private final class MemoryDetailRepositoryStub: MemoryRepository {
     private let memory: MemorySummary?
+    private let recentlyDeletedMemory: MemorySummary?
 
-    init(memory: MemorySummary?) {
+    init(memory: MemorySummary?, recentlyDeletedMemory: MemorySummary? = nil) {
         self.memory = memory
+        self.recentlyDeletedMemory = recentlyDeletedMemory
     }
 
     func fetchActiveMemories() async throws -> [MemorySummary] { memory.map { [$0] } ?? [] }
     func fetchActiveMemories(journalID: UUID) async throws -> [MemorySummary] { [] }
     func fetchActiveMemory(id: UUID) async throws -> MemorySummary? { memory }
+    func fetchRecentlyDeletedMemory(id: UUID) async throws -> MemorySummary? {
+        recentlyDeletedMemory
+    }
     func createMemory(from draft: MemoryDraft, origin: MemoryCreationOrigin) throws -> Memory {
         throw MemoryDetailTestError.unavailable
     }
@@ -129,6 +176,15 @@ private final class ManagedMediaReaderStub: ManagedMediaReading {
     func fileURL(for filename: String) throws -> URL {
         guard let url = urls[filename] else { throw MemoryDetailTestError.unavailable }
         return url
+    }
+}
+
+@MainActor
+private final class RecoveryServiceStub: RecentlyDeletedRecovering {
+    private(set) var recoveredIDs: [RecentlyDeletedItem.ID] = []
+
+    func recover(_ itemID: RecentlyDeletedItem.ID, at date: Date) throws {
+        recoveredIDs.append(itemID)
     }
 }
 

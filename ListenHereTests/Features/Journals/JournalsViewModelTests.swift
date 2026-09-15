@@ -81,6 +81,20 @@ struct JournalsViewModelTests {
         #expect(viewModel.errorMessage == "Choose another journal before continuing.")
     }
 
+    @Test("Deleting a journal and its memories persists the requested strategy")
+    func deletesJournalAndMemories() async {
+        let source = makeJournal(name: "Trip", memoryCount: 2)
+        let repository = JournalRepositoryStub(journals: [])
+        let viewModel = JournalsViewModel(repository: repository)
+
+        let succeeded = await viewModel.deleteJournalAndMemories(source)
+
+        #expect(succeeded)
+        #expect(repository.deletionRequests == [
+            .init(journalID: source.id, strategy: .moveContainedMemoriesToRecentlyDeleted),
+        ])
+    }
+
     @Test("Creating a journal reloads the collection")
     func createsJournal() async {
         let repository = JournalRepositoryStub(journals: [])

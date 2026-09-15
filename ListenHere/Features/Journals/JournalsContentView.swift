@@ -49,16 +49,22 @@ struct JournalsContentView: View {
                         .buttonStyle(.plain)
 
                         if journal.isSystemUnassigned == false {
-                            Menu("Journal Actions", systemImage: "ellipsis") {
+                            Menu {
                                 Button("Rename", systemImage: "pencil") {
                                     viewModel.requestRename(of: journal)
                                 }
                                 Button("Delete", systemImage: "trash", role: .destructive) {
                                     viewModel.requestDeletion(of: journal)
                                 }
+                            } label: {
+                                Label("Journal Actions", systemImage: "ellipsis.circle")
+                                    .labelStyle(.iconOnly)
+                                    .frame(width: 52, height: 52)
+                                    .contentShape(.rect)
                             }
-                            .labelStyle(.iconOnly)
-                            .frame(minWidth: 44, minHeight: 44)
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Actions for \(journal.name)")
+                            .accessibilityHint("Rename or delete this journal")
                         }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {

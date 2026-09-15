@@ -35,6 +35,9 @@ For visible styling, component behavior, theming, or Figma references, read
 - The ellipsis action for a recently deleted item presents Recover and Delete Permanently.
   A recovered memory returns to any active original journals; if none remain, it is assigned
   to the protected system **Unassigned** journal.
+- A recently deleted journal can be opened to browse the memories deleted with it. This view is
+  read-only and provides in-context recovery; creating, editing, or deleting remains unavailable
+  until the journal is recovered.
 - Places are a way to browse memories; location does not own a memory.
 - Audio never autoplays. Playback always follows a deliberate user action.
 - Restore the last valid stable browsing path. If a referenced memory or journal no longer
@@ -66,6 +69,7 @@ App shell
     |   `-- Memories at the selected place
     |       `-- Memory Detail
     `-- Recently Deleted
+        |-- Read-only Memory Detail or MemoryListView for a deleted Journal
         |-- Restore Journal or Memory
         `-- Permanently Delete Journal or Memory
 ```
@@ -135,7 +139,7 @@ from mistaking empty files for implemented features.
 | Memory-list position restoration | `ListenHere/Features/Memories/AllMemoriesView.swift` and `ListenHere/Features/Journals/MemoryListView.swift` | Pending: returning from Memory Detail should restore the same visible memory and approximate scroll offset independently for All Memories and each journal |
 | Library hub | `ListenHere/Features/Library/LibraryView.swift` | Journals, Places, and Recently Deleted routes implemented |
 | Journal collection list | `ListenHere/Features/Journals/JournalsView.swift` | Active list and native two-stage deletion flow implemented |
-| Journal detail / filtered memories | `ListenHere/Features/Journals/MemoryListView.swift` | Filtered memories, per-memory Edit, Choose Journals, and soft-delete actions implemented |
+| Journal detail / filtered memories | `ListenHere/Features/Journals/MemoryListView.swift` | Active journals support filtered memories, per-memory editing, assignment, and soft deletion; deleted journals reuse the view in a read-only recovery mode |
 | Places map | `ListenHere/Features/Places/PlacesView.swift` and `LocationPickerSheet.swift` | Searchable canonical-location map, nearby-memory grouping, selected-place filtered list, and location-selection pin sheet with reverse-geocoded landmark or city names implemented |
 | Location naming | `ListenHere/Features/Places/MapKitLocationNameResolver.swift` and `MemoryLocationNameBackfillService.swift` | MapKit reverse geocoding is isolated behind `LocationNameResolving`; capture starts naming candidates immediately, browsing retries prior unnamed records, and the resolved canonical name persists without overwriting a newer manual location |
 | Memory detail | `ListenHere/Features/Memories/MemoryDetailView.swift` | Displays managed photos with a bottom-trailing ambient-sound overlay, including elapsed and total playback time; sound-only memories retain a clear playback button, and saved-memory editing is available; sharing remains pending |
@@ -148,7 +152,7 @@ from mistaking empty files for implemented features.
 | Composer media preview | `ListenHere/Features/Capture/CaptureMediaPreviewViewModel.swift` | Owns deliberate playback and asynchronous waveform loading for recorded or imported sound |
 | Waveform analysis | `ListenHere/Features/Capture/AVFoundationAudioWaveformAnalyzer.swift` | Decodes and downsamples managed audio off the main actor; playback remains available if analysis fails |
 | Journal assignment sheet | `ListenHere/Features/Journals/JournalAssignmentSheet.swift` | Native staged multi-selection is integrated into saved-memory editing and each active-memory ellipsis menu |
-| Recently Deleted | `ListenHere/Features/RecentlyDeleted/RecentlyDeletedView.swift` | Implemented and linked from Library |
+| Recently Deleted | `ListenHere/Features/RecentlyDeleted/RecentlyDeletedView.swift` | Implemented and linked from Library; deleted memories and journals open read-only detail views with in-context recovery |
 | Memory editing | `ListenHere/Features/Memories/MemoryEditorSheet.swift` and `MemoryEditSessionViewModel.swift` | Photo/sound replacement or removal, metadata/date changes, journal assignments, location-source selection, and manual MapKit pin placement are implemented. One canonical location and all available source candidates persist for future edits |
 | Video export and sharing | `Features/Sharing/` | Missing |
 | Settings | `Features/Settings/SettingsView.swift` | Missing |

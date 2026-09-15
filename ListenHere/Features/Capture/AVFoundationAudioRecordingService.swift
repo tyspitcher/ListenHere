@@ -147,11 +147,18 @@ final class AVFoundationAudioRecordingService: NSObject, AudioRecordingServicing
             .deactivate(options: [.notifyOthersOnDeactivation])
     }
 
-    func normalizedMeterLevel() -> Double {
-        guard let recorder, recorder.isRecording else { return 0 }
+    func meterLevel() -> AudioMeterLevel {
+        guard let recorder, recorder.isRecording else { return .silence }
         recorder.updateMeters()
-        let decibels = max(-60, min(0, recorder.averagePower(forChannel: 0)))
-        return pow(10, Double(decibels) / 20)
+        return AudioMeterLevel(
+            average: Self.normalizedPower(recorder.averagePower(forChannel: 0)),
+            peak: Self.normalizedPower(recorder.peakPower(forChannel: 0))
+        )
+    }
+
+    private static func normalizedPower(_ decibels: Float) -> Double {
+        let clampedDecibels = max(-60, min(0, decibels))
+        return pow(10, Double(clampedDecibels) / 20)
     }
 
     @objc private func audioRouteDidChange(_ notification: Notification) {

@@ -35,6 +35,25 @@ struct AppRouterTests {
         #expect(store.savedPaths.last == [])
     }
 
+    @Test("A valid Recently Deleted memory route is restored")
+    @MainActor
+    func restoresRecentlyDeletedMemoryPath() async {
+        let memory = makeMemory()
+        let store = NavigationStateStoreStub(path: [.library, .recentlyDeleted, .recentlyDeletedMemory(memory.id)])
+        let router = AppRouter(
+            stateStore: store,
+            memoryRepository: RouterMemoryRepository(
+                memory: nil,
+                recentlyDeletedMemory: memory
+            ),
+            journalRepository: RouterJournalRepository(journals: [])
+        )
+
+        await router.restorePathIfNeeded()
+
+        #expect(router.path == [.library, .recentlyDeleted, .recentlyDeletedMemory(memory.id)])
+    }
+
     private func makeMemory() -> MemorySummary {
         MemorySummary(
             id: UUID(),
@@ -66,15 +85,20 @@ private final class NavigationStateStoreStub: NavigationStateStore {
 @MainActor
 private final class RouterMemoryRepository: MemoryRepository {
     let memory: MemorySummary?
+    let recentlyDeletedMemory: MemorySummary?
 
-    init(memory: MemorySummary?) {
+    init(memory: MemorySummary?, recentlyDeletedMemory: MemorySummary? = nil) {
         self.memory = memory
+        self.recentlyDeletedMemory = recentlyDeletedMemory
     }
 
     func fetchActiveMemories() async throws -> [MemorySummary] { memory.map { [$0] } ?? [] }
     func fetchActiveMemories(journalID: UUID) async throws -> [MemorySummary] { [] }
     func fetchActiveMemory(id: UUID) async throws -> MemorySummary? {
         memory?.id == id ? memory : nil
+    }
+    func fetchRecentlyDeletedMemory(id: UUID) async throws -> MemorySummary? {
+        recentlyDeletedMemory?.id == id ? recentlyDeletedMemory : nil
     }
     func createMemory(from draft: MemoryDraft, origin: MemoryCreationOrigin) throws -> Memory {
         throw RouterTestError.unavailable

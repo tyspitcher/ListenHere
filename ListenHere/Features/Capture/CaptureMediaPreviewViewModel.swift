@@ -47,7 +47,7 @@ final class CaptureMediaPreviewViewModel {
         }
 
         do {
-            let samples = try await waveformAnalyzer.samples(for: audioURL, targetCount: 48)
+            let samples = try await waveformAnalyzer.samples(for: audioURL, targetCount: 36)
             guard Task.isCancelled == false, loadedAudioURL == audioURL else { return }
             waveformSamples = samples
         } catch is CancellationError {

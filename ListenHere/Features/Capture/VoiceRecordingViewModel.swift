@@ -15,7 +15,7 @@ final class VoiceRecordingViewModel {
 
     var hasUnsavedRecording: Bool {
         switch state {
-        case .requestingPermission, .recording, .finalizing:
+        case .requestingPermission, .preparingRecording, .recording, .finalizing:
             true
         case .idle, .failed:
             false
@@ -26,7 +26,7 @@ final class VoiceRecordingViewModel {
         if case .recording(let elapsed, _) = state { elapsed } else { 0 }
     }
 
-    var levels: [Double] {
+    var levels: [AudioMeterLevel] {
         if case .recording(_, let levels) = state { levels } else { [] }
     }
 
@@ -45,6 +45,7 @@ final class VoiceRecordingViewModel {
     private var elapsedTimeTask: Task<Void, Never>?
     private var serviceEventTask: Task<Void, Never>?
     private var operationGeneration = 0
+    private var applicationIsActive = true
 
     init(
         service: any AudioRecordingServicing,
@@ -72,19 +73,25 @@ final class VoiceRecordingViewModel {
         }
         guard generation == operationGeneration, case .requestingPermission = state else { return }
 
-        do {
-            try await service.start()
-            guard generation == operationGeneration, case .requestingPermission = state else {
-                await service.cancel()
-                return
-            }
-            state = .recording(elapsed: 0, levels: [])
-            startElapsedTimeUpdates()
-            startObservingServiceEvents()
-        } catch {
-            guard generation == operationGeneration else { return }
-            state = .failed(.couldNotStart)
+        // The permission alert can still be covering the app when the authorization callback
+        // returns. Waiting for SwiftUI to report an active scene prevents AVAudioRecorder from
+        // beginning a clip that iOS immediately interrupts as the alert dismisses.
+        guard applicationIsActive else {
+            state = .preparingRecording
+            return
         }
+        await beginRecording(generation: generation)
+    }
+
+    func applicationDidBecomeActive() async {
+        applicationIsActive = true
+        guard case .preparingRecording = state else { return }
+        await beginRecording(generation: operationGeneration)
+    }
+
+    func applicationDidBecomeInactive() async {
+        applicationIsActive = false
+        await stopForLifecycleEvent()
     }
 
     func stop() async {
@@ -122,7 +129,41 @@ final class VoiceRecordingViewModel {
         switch state {
         case .idle, .failed:
             true
-        case .requestingPermission, .recording, .finalizing:
+        case .requestingPermission, .preparingRecording, .recording, .finalizing:
+            false
+        }
+    }
+
+    private func beginRecording(generation: Int) async {
+        guard generation == operationGeneration,
+              applicationIsActive,
+              isPreparingToStartRecording else {
+            return
+        }
+
+        do {
+            try await service.start()
+            guard generation == operationGeneration, applicationIsActive else {
+                await service.cancel()
+                if generation == operationGeneration {
+                    state = .preparingRecording
+                }
+                return
+            }
+            state = .recording(elapsed: 0, levels: [])
+            startElapsedTimeUpdates()
+            startObservingServiceEvents()
+        } catch {
+            guard generation == operationGeneration else { return }
+            state = .failed(.couldNotStart)
+        }
+    }
+
+    private var isPreparingToStartRecording: Bool {
+        switch state {
+        case .requestingPermission, .preparingRecording:
+            true
+        case .idle, .recording, .finalizing, .failed:
             false
         }
     }
@@ -138,7 +179,7 @@ final class VoiceRecordingViewModel {
                 }
 
                 var updatedLevels = existingLevels
-                updatedLevels.append(service.normalizedMeterLevel())
+                updatedLevels.append(service.meterLevel())
                 if updatedLevels.count > 48 {
                     updatedLevels.removeFirst(updatedLevels.count - 48)
                 }

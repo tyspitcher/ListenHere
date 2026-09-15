@@ -33,14 +33,14 @@ struct JournalsView: View {
         ) { journal in
             if journal.memoryCount == 0 {
                 Button("Delete Journal", role: .destructive) {
-                    Task { await viewModel.deleteJournalAndMemories() }
+                    deleteJournalAndMemories()
                 }
             } else {
                 Button("Delete Journal Only", role: .destructive) {
                     viewModel.prepareToMoveMemories()
                 }
                 Button("Delete Journal & Memories", role: .destructive) {
-                    Task { await viewModel.deleteJournalAndMemories() }
+                    deleteJournalAndMemories()
                 }
             }
             Button("Cancel", role: .cancel) {
@@ -76,6 +76,11 @@ struct JournalsView: View {
     private var deletionTitle: String {
         guard let journal = viewModel.journalPendingDeletion else { return "Delete Journal?" }
         return "Delete “\(journal.name)” Journal?"
+    }
+
+    private func deleteJournalAndMemories() {
+        guard let journal = viewModel.journalPendingDeletion else { return }
+        Task { await viewModel.deleteJournalAndMemories(journal) }
     }
 
     private var deletionConfirmationBinding: Binding<Bool> {
