@@ -81,6 +81,25 @@ struct MemoryDetailViewModelTests {
         #expect(viewModel.state == .loaded(memory))
         #expect(viewModel.canEdit == false)
         #expect(viewModel.makeEditSession(for: memory) == nil)
+        #expect(viewModel.canShare == false)
+        #expect(viewModel.sharingAvailability(for: memory) == nil)
+    }
+
+    @Test("Photo-and-sound memories are shared as video")
+    func photoAndSoundMemoryUsesVideoSharing() {
+        let memory = makeMemory()
+        let viewModel = makeViewModel()
+
+        #expect(viewModel.sharingAvailability(for: memory) == .video)
+    }
+
+    @Test("Sharing uses the original photo and requires a background for sound only")
+    func sharingSelectsTheCorrectMediaPath() {
+        let viewModel = makeViewModel()
+
+        #expect(viewModel.sharingAvailability(for: makeMemory(thumbnail: nil, hasAudio: true)) == .needsBackground)
+        #expect(viewModel.sharingAvailability(for: makeMemory(thumbnail: .managedFile("photos/morning.heic"), hasAudio: false)) == .photo)
+        #expect(viewModel.sharingAvailability(for: makeMemory(thumbnail: nil, hasAudio: false)) == .unavailable)
     }
 
     @Test("Recently deleted detail recovers its memory through the recovery capability")
@@ -122,15 +141,27 @@ struct MemoryDetailViewModelTests {
         #expect(viewModel.audioPlaybackState == .paused(elapsed: 4.5, duration: 12))
     }
 
-    private func makeMemory() -> MemorySummary {
+    private func makeViewModel() -> MemoryDetailViewModel {
+        MemoryDetailViewModel(
+            memoryID: UUID(),
+            repository: MemoryDetailRepositoryStub(memory: makeMemory()),
+            mediaStore: ManagedMediaReaderStub(urls: [:]),
+            audioPlaybackService: AudioPlaybackServiceStub(duration: 12)
+        )
+    }
+
+    private func makeMemory(
+        thumbnail: MemorySummary.Thumbnail? = .managedFile("photos/morning.heic"),
+        hasAudio: Bool = true
+    ) -> MemorySummary {
         MemorySummary(
             id: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)),
             title: "Morning Rain",
             caption: "Rain on the porch.",
             capturedAt: .init(timeIntervalSince1970: 1),
-            thumbnail: .managedFile("photos/morning.heic"),
-            hasAudio: true,
-            audioFilename: "audio/morning.m4a",
+            thumbnail: thumbnail,
+            hasAudio: hasAudio,
+            audioFilename: hasAudio ? "audio/morning.m4a" : nil,
             audioDurationSeconds: 12,
             locationName: nil,
             journalNames: []

@@ -10,6 +10,10 @@ enum MemoryDetailAccess: Equatable, Sendable {
         self == .active
     }
 
+    var permitsSharing: Bool {
+        self == .active
+    }
+
     var isRecentlyDeleted: Bool {
         self == .recentlyDeleted
     }
