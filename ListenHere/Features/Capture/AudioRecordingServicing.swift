@@ -5,6 +5,8 @@ import Foundation
 enum AudioRecordingServiceEvent: Sendable {
     case interruptionBegan
     case routeChanged
+    case recordingSuspendedUnexpectedly
+    case recordingEndedUnexpectedly
 }
 
 struct AudioMeterLevel: Equatable, Sendable {
@@ -20,7 +22,15 @@ protocol AudioRecordingServicing: AnyObject {
 
     func requestPermission() async -> Bool
     func start() async throws
+    func resumeAfterCameraSessionStarts() async throws
     func stop() async throws -> AudioRecording
     func cancel() async
     func meterLevel() -> AudioMeterLevel
+}
+
+/// Supplies the UIKit/AVFoundation camera adapter that shares the active recording session.
+/// Test and preview audio services intentionally do not need to implement this capability.
+@MainActor
+protocol RecordingPhotoCameraProviding: AnyObject {
+    func makeRecordingPhotoCameraController() -> RecordingPhotoCameraController
 }

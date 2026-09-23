@@ -14,13 +14,14 @@ struct CaptureComposerSheet: View {
     private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     @State private var recordingViewModel: VoiceRecordingViewModel
+    @State private var recordingPhotoCameraController: RecordingPhotoCameraController?
     @State private var previewViewModel: CaptureMediaPreviewViewModel
     @State private var cameraViewModel: CameraCaptureViewModel
     @State private var title: String
     @State private var description: String
     @State private var currentAlert: CaptureComposerAlert?
     @State private var audioFileImporterIsPresented = false
-    @State private var cameraIsPresented = false
+    @State private var cameraPresentation: CameraPresentation?
     @State private var discardConfirmationIsPresented = false
     @State private var cleanupFailureDiscardConfirmationIsPresented = false
     @State private var cleanupRetryTarget: CleanupRetryTarget?
@@ -28,7 +29,7 @@ struct CaptureComposerSheet: View {
 
     init(
         viewModel: CaptureViewModel,
-        makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> VoiceRecordingViewModel,
+        makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> CaptureRecordingSession,
         makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> CaptureMediaPreviewViewModel,
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory,
@@ -37,7 +38,9 @@ struct CaptureComposerSheet: View {
         self.viewModel = viewModel
         self.onSaved = onSaved
         self.makeLocationPickerViewModel = makeLocationPickerViewModel
-        _recordingViewModel = State(wrappedValue: makeVoiceRecordingViewModel(viewModel))
+        let recordingSession = makeVoiceRecordingViewModel(viewModel)
+        _recordingViewModel = State(wrappedValue: recordingSession.viewModel)
+        _recordingPhotoCameraController = State(wrappedValue: recordingSession.photoCameraController)
         _previewViewModel = State(wrappedValue: makeCaptureMediaPreviewViewModel(viewModel))
         _cameraViewModel = State(wrappedValue: makeCameraCaptureViewModel())
         _title = State(initialValue: viewModel.draft.title ?? "")
@@ -87,13 +90,30 @@ struct CaptureComposerSheet: View {
         ) { result in
             importAudioFile(result)
         }
-        .fullScreenCover(isPresented: $cameraIsPresented) {
-            SystemCameraPicker(
-                onPhotoCaptured: importCapturedPhoto,
-                onCancel: dismissCamera,
-                onFailure: reportCameraImportFailure
-            )
-            .ignoresSafeArea()
+        .fullScreenCover(item: $cameraPresentation) { presentation in
+            switch presentation {
+            case .system:
+                SystemCameraPicker(
+                    onPhotoCaptured: importCapturedPhoto,
+                    onCancel: dismissCamera,
+                    onFailure: reportCameraImportFailure
+                )
+                .ignoresSafeArea()
+            case .whileRecording:
+                if let camera = recordingPhotoCameraController {
+                    RecordingPhotoCamera(
+                        camera: camera,
+                        recordingViewModel: recordingViewModel,
+                        onPhotoCaptured: importCapturedPhoto,
+                        onCancel: dismissCamera,
+                        onFailure: reportCameraImportFailure
+                    )
+                } else {
+                    Color.black
+                        .ignoresSafeArea()
+                        .task { reportCameraImportFailure() }
+                }
+            }
         }
         .task(id: viewModel.draft.audioFilename) {
             await previewViewModel.loadAudio()
@@ -152,7 +172,6 @@ struct CaptureComposerSheet: View {
             actions: alertActions,
             message: { alert in Text(alert.message) }
         )
-        .onDisappear(perform: shutdown)
     }
 
     private var alertIsPresented: Binding<Bool> {
@@ -186,22 +205,22 @@ struct CaptureComposerSheet: View {
         Task {
             await previewViewModel.stopPlayback()
             if await cameraViewModel.prepareCamera() {
-                cameraIsPresented = true
+                cameraPresentation = recordingViewModel.isRecording ? .whileRecording : .system
             }
         }
     }
 
     private func importCapturedPhoto(_ photo: CapturedPhoto) {
-        cameraIsPresented = false
+        cameraPresentation = nil
         viewModel.importPhoto(photo.data, preferredFileExtension: photo.preferredFileExtension)
     }
 
     private func dismissCamera() {
-        cameraIsPresented = false
+        cameraPresentation = nil
     }
 
     private func reportCameraImportFailure() {
-        cameraIsPresented = false
+        cameraPresentation = nil
         currentAlert = .cameraImport
     }
 
@@ -363,15 +382,23 @@ struct CaptureComposerSheet: View {
         openURL(settingsURL)
     }
 
-    private func shutdown() {
-        Task {
-            await previewViewModel.shutdown()
-            await recordingViewModel.shutdown()
-        }
-    }
 }
 
 private extension CaptureComposerSheet {
+    enum CameraPresentation: Identifiable {
+        case system
+        case whileRecording
+
+        var id: String {
+            switch self {
+            case .system:
+                "system"
+            case .whileRecording:
+                "while-recording"
+            }
+        }
+    }
+
     enum CleanupRetryTarget {
         case photo
         case audio

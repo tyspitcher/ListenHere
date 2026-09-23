@@ -35,7 +35,9 @@ struct CaptureComposerContentView: View {
                     CapturePhotoTile(
                         photoURL: photoURL,
                         hasPhoto: captureViewModel.draft.normalizedPhotoFilename != nil,
-                        isEnabled: editorIsEnabled,
+                        canTakePhoto: canTakePhoto,
+                        canChooseFromLibrary: editorIsEnabled,
+                        canRemovePhoto: canTakePhoto,
                         takePhoto: takePhoto,
                         importPhoto: importPhoto,
                         reportImportFailure: reportPhotoImportFailure,
@@ -86,8 +88,13 @@ struct CaptureComposerContentView: View {
     }
 
     private var editorIsEnabled: Bool {
-        guard recordingViewModel.hasUnsavedRecording == false else { return false }
-        return if case .editing = captureViewModel.state { true } else { false }
+        guard case .editing = captureViewModel.state else { return false }
+        return recordingViewModel.state.permitsMediaSourceSelection
+    }
+
+    private var canTakePhoto: Bool {
+        guard case .editing = captureViewModel.state else { return false }
+        return recordingViewModel.state.permitsPhotoCapture
     }
 
     private var isSaving: Bool {

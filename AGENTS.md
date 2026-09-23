@@ -97,8 +97,13 @@ Core behavior and terminology:
   Memos app. Files selections must be copied into managed media storage while the
   security-scoped URL is available.
 - Present all four source actions directly in the composer, grouped in the Photo and Sound
-  tiles. Keep camera capture full screen through the system camera, while photo-library and
-  Files selection use their native pickers. Active recording remains inside the sound tile.
+  tiles. Keep camera capture full screen through the system camera when no recording is active,
+  while photo-library and Files selection use their native pickers. During active recording,
+  use ListenHere's in-app still-photo capture on the same AVFoundation session that owns the
+  microphone. Add only a camera input and photo output—never a movie output—so a person can take
+  one photo without a second capture session interrupting ambient sound. Active recording remains
+  visible in the composer and camera surfaces, and suppress the shutter sound where the device and
+  local rules permit it.
 - When permission is granted, use capture location and available photo metadata as helpful
   starting values. Location remains optional and editable, and denial must not block capture.
 - Preserve distinct location candidates when photo metadata and the device location captured

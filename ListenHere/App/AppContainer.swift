@@ -176,9 +176,10 @@ final class AppContainer {
         }
     }
 
-    func makeVoiceRecordingViewModel(captureViewModel: CaptureViewModel) -> VoiceRecordingViewModel {
-        VoiceRecordingViewModel(
-            service: audioRecordingServiceFactory(),
+    func makeVoiceRecordingViewModel(captureViewModel: CaptureViewModel) -> CaptureRecordingSession {
+        let service = audioRecordingServiceFactory()
+        let viewModel = VoiceRecordingViewModel(
+            service: service,
             clock: ContinuousRecordingClock()
         ) { recording in
             captureViewModel.importAudio(
@@ -187,6 +188,12 @@ final class AppContainer {
                 durationSeconds: recording.duration
             )
         }
+        let cameraController = (service as? any RecordingPhotoCameraProviding)?
+            .makeRecordingPhotoCameraController()
+        return CaptureRecordingSession(
+            viewModel: viewModel,
+            photoCameraController: cameraController
+        )
     }
 
     func makeCaptureMediaPreviewViewModel(

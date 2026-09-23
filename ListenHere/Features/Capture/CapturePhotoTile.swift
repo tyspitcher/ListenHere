@@ -8,7 +8,9 @@ struct CapturePhotoTile: View {
 
     let photoURL: URL?
     let hasPhoto: Bool
-    let isEnabled: Bool
+    let canTakePhoto: Bool
+    let canChooseFromLibrary: Bool
+    let canRemovePhoto: Bool
     let takePhoto: () -> Void
     let importPhoto: (Data, String) -> Void
     let reportImportFailure: () -> Void
@@ -38,7 +40,6 @@ struct CapturePhotoTile: View {
             onPhotoDataSelected: importPhoto,
             onImportFailure: reportImportFailure
         )
-        .disabled(isEnabled == false)
     }
 
     private var palette: AppPalette {
@@ -63,6 +64,7 @@ struct CapturePhotoTile: View {
                         accessibilityIdentifier: "capture.takePhoto",
                         action: takePhoto
                     )
+                    .disabled(canTakePhoto == false)
 
                     CaptureSourceButton(
                         title: "Choose from Library",
@@ -70,6 +72,7 @@ struct CapturePhotoTile: View {
                         accessibilityIdentifier: "capture.chooseFromLibrary",
                         action: presentPhotoLibrary
                     )
+                    .disabled(canChooseFromLibrary == false)
                 }
                 .padding()
                 .tint(palette.accent)
@@ -91,6 +94,7 @@ struct CapturePhotoTile: View {
                     .buttonBorderShape(.circle)
                     .tint(palette.destructive)
                     .frame(minWidth: 44, minHeight: 44)
+                    .disabled(canRemovePhoto == false)
                     .padding(8)
                     .confirmationDialog(
                         "Remove This Photo?",

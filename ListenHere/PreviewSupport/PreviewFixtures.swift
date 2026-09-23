@@ -217,6 +217,10 @@ final class PreviewAudioRecordingService: AudioRecordingServicing {
         throw PreviewRepositoryError.readOnly
     }
 
+    func resumeAfterCameraSessionStarts() async throws {
+        throw PreviewRepositoryError.readOnly
+    }
+
     func stop() async throws -> AudioRecording {
         throw PreviewRepositoryError.readOnly
     }

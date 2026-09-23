@@ -58,7 +58,7 @@ App shell
 |   |   `-- Share Memory
 |   `-- New Memory composer sheet
 |       |-- Photo tile
-|       |   |-- Take Photo (full-screen system camera)
+|       |   |-- Take Photo (full-screen system camera, or in-app still camera while recording)
 |       |   `-- Choose from Library
 |       |-- Sound tile
 |       |   |-- Record Sound (in-place recording)
@@ -148,10 +148,10 @@ from mistaking empty files for implemented features.
 | Memory detail | `ListenHere/Features/Memories/MemoryDetailView.swift`, `MemorySharingAvailability.swift`, and `ShareMemorySheet.swift` | Displays managed photos with a bottom-trailing ambient-sound overlay, including elapsed and total playback time; sound-only memories retain a clear playback button, and saved-memory editing is available. An active memory distinguishes photo sharing, photo-and-sound video sharing, and the sound-only background prerequisite; actual export remains pending |
 | Create Memory composer | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | One large sheet presents four direct source actions grouped in Photo and Sound tiles and owns in-place media previews, optional metadata, pinned Save, recording presentation, cancellation, and cleanup recovery; there is no capture navigation route |
 | Photo Library picker adapter | `ListenHere/Features/Capture/PhotoLibraryPicker.swift` | Native `PhotosPicker` loads the selected photo while its access is valid, then hands bytes to the capture flow; it stores no Photos reference |
-| Camera adapter | `ListenHere/Features/Capture/SystemCameraPicker.swift` | Native `UIImagePickerController` camera runs full screen, returns captured bytes to managed storage, and never writes into the user's Photos library |
+| Camera adapters | `ListenHere/Features/Capture/SystemCameraPicker.swift` and `RecordingPhotoCamera.swift` | The native `UIImagePickerController` camera runs full screen for ordinary captures. During active ambient recording, the in-app still camera adds a camera input and `AVCapturePhotoOutput` to the same capture session already receiving microphone samples; it never adds a movie output. This prevents a second capture session from competing for the microphone and suppresses the shutter sound where iOS permits. Once a person accepts a photo, that shared camera graph remains configured until the ambient recording ends, avoiding a second graph reconfiguration during the photo-accept transition. Neither adapter writes into the user's Photos library. |
 | Audio file picker | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | Native `fileImporter` reads a security-scoped audio URL and copies bytes into managed media; no external URL is persisted |
 | Capture state and persistence | `ListenHere/Features/Capture/CaptureViewModel.swift` | `MemoryDraft` metadata, managed-media ownership, imported-photo GPS candidate, one-shot recording-location candidate, manual location selection, cleanup, Save eligibility, and repository transfer are implemented without presentation routing |
-| Audio recording | `ListenHere/Features/Capture/VoiceRecordingViewModel.swift` and `ListenHere/Features/Capture/AVFoundationAudioRecordingService.swift` | In-place recording exposes elapsed time and normalized levels, stops manually or after five minutes, and preserves valid partial clips on interruption or backgrounding |
+| Audio recording | `ListenHere/Features/Capture/VoiceRecordingViewModel.swift`, `AVFoundationAudioRecordingService.swift`, and `RecordingCaptureSessionCoordinator.swift` | In-place recording receives microphone samples with `AVCaptureAudioDataOutput`, writes AAC audio to M4A through `AVAssetWriter`, exposes elapsed time and normalized levels, and shares the capture session with still photos. It stops manually or after five minutes and preserves valid partial clips on interruption or backgrounding |
 | Composer media preview | `ListenHere/Features/Capture/CaptureMediaPreviewViewModel.swift` | Owns deliberate playback and asynchronous waveform loading for recorded or imported sound |
 | Waveform analysis | `ListenHere/Features/Capture/AVFoundationAudioWaveformAnalyzer.swift` | Decodes and downsamples managed audio off the main actor; playback remains available if analysis fails |
 | Journal assignment sheet | `ListenHere/Features/Journals/JournalAssignmentSheet.swift` | Native staged multi-selection is integrated into saved-memory editing and each active-memory ellipsis menu |
@@ -173,9 +173,10 @@ Paths under `Features/` describe the intended feature-first destination from `AG
 Do not create all missing files speculatively. Create or move a file only as part of a complete
 feature change, then update this table with its actual path and status.
 
-UIKit interop is limited to the system camera adapter where SwiftUI has no equivalent. New UI
-should remain SwiftUI-first, and any additional UIKit interop must be wrapped narrowly where an
-Apple API requires it.
+UIKit interop is limited to the camera adapters where SwiftUI has no equivalent: the system
+camera picker plus a narrow AVFoundation preview-and-gesture wrapper for still capture during
+recording. New UI should remain SwiftUI-first, and any additional UIKit interop must be wrapped
+narrowly where an Apple API requires it.
 
 ### Managed Media Contract
 
