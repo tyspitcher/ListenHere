@@ -154,6 +154,72 @@ struct VoiceRecordingViewModelTests {
         #expect(viewModel.state == .idle)
     }
 
+    @Test("An unexpected recorder ending preserves the partial recording")
+    func unexpectedRecorderEndPreservesRecording() async {
+        let service = VoiceRecordingServiceStub()
+        var completedRecordings: [AudioRecording] = []
+        let viewModel = VoiceRecordingViewModel(
+            service: service,
+            clock: ManualRecordingClock(),
+            onRecordingFinished: { completedRecordings.append($0) }
+        )
+
+        await viewModel.start()
+        await Task.yield()
+        service.send(.recordingEndedUnexpectedly)
+        await waitUntil { completedRecordings.count == 1 }
+
+        #expect(service.stopCount == 1)
+        #expect(completedRecordings.first?.duration == 12)
+        #expect(viewModel.state == .idle)
+    }
+
+    @Test("Starting the camera asks the recording service to continue the same clip")
+    func cameraSessionStartKeepsRecording() async {
+        let service = VoiceRecordingServiceStub()
+        let viewModel = makeViewModel(service: service)
+
+        await viewModel.start()
+        await viewModel.cameraSessionDidStart()
+
+        #expect(service.resumeAfterCameraSessionStartCount == 1)
+        #expect(viewModel.isRecording)
+        #expect(service.stopCount == 0)
+    }
+
+    @Test("A delayed recorder suspension is resumed without ending the clip")
+    func delayedCameraSuspensionResumesRecording() async {
+        let service = VoiceRecordingServiceStub()
+        let viewModel = makeViewModel(service: service)
+
+        await viewModel.start()
+        await Task.yield()
+        service.send(.recordingSuspendedUnexpectedly)
+        await waitUntil { service.resumeAfterCameraSessionStartCount == 1 }
+
+        #expect(viewModel.isRecording)
+        #expect(service.stopCount == 0)
+    }
+
+    @Test("A camera-start audio recovery failure preserves the partial clip")
+    func cameraSessionRecoveryFailurePreservesRecording() async {
+        let service = VoiceRecordingServiceStub(cameraResumeShouldFail: true)
+        var completedRecordings: [AudioRecording] = []
+        let viewModel = VoiceRecordingViewModel(
+            service: service,
+            clock: ManualRecordingClock(),
+            onRecordingFinished: { completedRecordings.append($0) }
+        )
+
+        await viewModel.start()
+        await viewModel.cameraSessionDidStart()
+
+        #expect(service.resumeAfterCameraSessionStartCount == 1)
+        #expect(service.stopCount == 1)
+        #expect(completedRecordings.count == 1)
+        #expect(viewModel.state == .idle)
+    }
+
     @Test("Discarding an active recording stops its service without importing")
     func discardingActiveRecording() async {
         let service = VoiceRecordingServiceStub()
@@ -208,19 +274,23 @@ private final class VoiceRecordingServiceStub: AudioRecordingServicing {
     private let permissionGranted: Bool
     private let averageMeterLevel: Double
     private let recordingDuration: TimeInterval
+    private let cameraResumeShouldFail: Bool
     private var eventContinuation: AsyncStream<AudioRecordingServiceEvent>.Continuation?
     private(set) var didCancel = false
     private(set) var startCount = 0
     private(set) var stopCount = 0
+    private(set) var resumeAfterCameraSessionStartCount = 0
 
     init(
         permissionGranted: Bool = true,
         meterLevel: Double = 0.25,
-        recordingDuration: TimeInterval = 12
+        recordingDuration: TimeInterval = 12,
+        cameraResumeShouldFail: Bool = false
     ) {
         self.permissionGranted = permissionGranted
         averageMeterLevel = meterLevel
         self.recordingDuration = recordingDuration
+        self.cameraResumeShouldFail = cameraResumeShouldFail
         let stream = AsyncStream<AudioRecordingServiceEvent>.makeStream()
         events = stream.stream
         eventContinuation = stream.continuation
@@ -230,6 +300,11 @@ private final class VoiceRecordingServiceStub: AudioRecordingServicing {
 
     func start() async throws {
         startCount += 1
+    }
+
+    func resumeAfterCameraSessionStarts() async throws {
+        resumeAfterCameraSessionStartCount += 1
+        if cameraResumeShouldFail { throw StubError.cameraResumeFailed }
     }
 
     func stop() async throws -> AudioRecording {
@@ -247,6 +322,10 @@ private final class VoiceRecordingServiceStub: AudioRecordingServicing {
 
     func send(_ event: AudioRecordingServiceEvent) {
         eventContinuation?.yield(event)
+    }
+
+    private enum StubError: Error {
+        case cameraResumeFailed
     }
 }
 
@@ -280,6 +359,8 @@ private final class ControlledPermissionRecordingServiceStub: AudioRecordingServ
     func start() async throws {
         startCount += 1
     }
+
+    func resumeAfterCameraSessionStarts() async throws {}
 
     func stop() async throws -> AudioRecording {
         AudioRecording(data: Data(), duration: 1)

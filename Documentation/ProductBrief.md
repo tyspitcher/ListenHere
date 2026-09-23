@@ -54,10 +54,11 @@ recording short ambient clips, exposing metering values for a waveform, playing 
 handling interruptions and route changes, and composing a still image plus audio into a short
 shareable video.
 
-Likely Apple types include `AVAudioSession`, `AVAudioRecorder`, `AVAudioPlayer`,
-`AVMutableComposition`, and `AVAssetExportSession`. Concrete AVFoundation work belongs behind
-narrow recording, playback, and export protocols so view models express user intent and can
-be tested without a microphone, speaker route, or export session.
+Likely Apple types include `AVAudioSession`, `AVCaptureSession`, `AVCaptureAudioDataOutput`,
+`AVCapturePhotoOutput`, `AVAssetWriter`, `AVAudioPlayer`, `AVMutableComposition`, and
+`AVAssetExportSession`. Concrete AVFoundation work belongs behind narrow recording, playback,
+camera, and export protocols so view models express user intent and can be tested without a
+microphone, camera, speaker route, or export session.
 
 Add short educational comments directly beside AVFoundation service and lifecycle code when
 it is implemented, especially around audio-session ownership, interruptions, and route changes.

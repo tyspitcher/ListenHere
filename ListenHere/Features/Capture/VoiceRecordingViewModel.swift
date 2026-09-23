@@ -74,8 +74,8 @@ final class VoiceRecordingViewModel {
         guard generation == operationGeneration, case .requestingPermission = state else { return }
 
         // The permission alert can still be covering the app when the authorization callback
-        // returns. Waiting for SwiftUI to report an active scene prevents AVAudioRecorder from
-        // beginning a clip that iOS immediately interrupts as the alert dismisses.
+        // returns. Waiting for SwiftUI to report an active scene prevents the capture session
+        // from beginning a clip that iOS immediately interrupts as the alert dismisses.
         guard applicationIsActive else {
             state = .preparingRecording
             return
@@ -96,6 +96,15 @@ final class VoiceRecordingViewModel {
 
     func stop() async {
         await finishRecording(reason: .user)
+    }
+
+    func cameraSessionDidStart() async {
+        guard case .recording = state else { return }
+        do {
+            try await service.resumeAfterCameraSessionStarts()
+        } catch {
+            await finishRecording(reason: .lifecycle)
+        }
     }
 
     func stopForLifecycleEvent() async {
@@ -197,9 +206,14 @@ final class VoiceRecordingViewModel {
         serviceEventTask?.cancel()
         serviceEventTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await _ in service.events {
+            for await event in service.events {
                 guard Task.isCancelled == false else { return }
-                await finishRecording(reason: .lifecycle)
+                switch event {
+                case .recordingSuspendedUnexpectedly:
+                    await cameraSessionDidStart()
+                case .interruptionBegan, .routeChanged, .recordingEndedUnexpectedly:
+                    await finishRecording(reason: .lifecycle)
+                }
             }
         }
     }

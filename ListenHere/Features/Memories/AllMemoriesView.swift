@@ -12,7 +12,7 @@ struct AllMemoriesView: View {
     let openLibrary: () -> Void
     let openMemory: (UUID) -> Void
     let makeCaptureViewModel: () -> CaptureViewModel
-    let makeVoiceRecordingViewModel: (CaptureViewModel) -> VoiceRecordingViewModel
+    let makeVoiceRecordingViewModel: (CaptureViewModel) -> CaptureRecordingSession
     let makeCaptureMediaPreviewViewModel: (CaptureViewModel) -> CaptureMediaPreviewViewModel
     let makeCameraCaptureViewModel: () -> CameraCaptureViewModel
     let makeMemoryEditSession: (MemorySummary) -> MemoryEditSessionViewModel
@@ -25,7 +25,7 @@ struct AllMemoriesView: View {
         openLibrary: @escaping () -> Void,
         openMemory: @escaping (UUID) -> Void,
         makeCaptureViewModel: @escaping () -> CaptureViewModel,
-        makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> VoiceRecordingViewModel,
+        makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> CaptureRecordingSession,
         makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> CaptureMediaPreviewViewModel,
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeMemoryEditSession: @escaping (MemorySummary) -> MemoryEditSessionViewModel,
@@ -224,8 +224,8 @@ private func makePreviewCaptureViewModel() -> CaptureViewModel {
 @MainActor
 private func makePreviewVoiceRecordingViewModel(
     captureViewModel: CaptureViewModel
-) -> VoiceRecordingViewModel {
-    VoiceRecordingViewModel(
+) -> CaptureRecordingSession {
+    let viewModel = VoiceRecordingViewModel(
         service: PreviewAudioRecordingService(),
         clock: ContinuousRecordingClock()
     ) { recording in
@@ -235,6 +235,7 @@ private func makePreviewVoiceRecordingViewModel(
             durationSeconds: recording.duration
         )
     }
+    return CaptureRecordingSession(viewModel: viewModel, photoCameraController: nil)
 }
 
 @MainActor

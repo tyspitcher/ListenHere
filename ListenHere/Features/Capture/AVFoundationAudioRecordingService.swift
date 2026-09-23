@@ -1,13 +1,14 @@
-// Encapsulates AVFoundation microphone permission, temporary-file recording, and audio-session cleanup.
+// Encapsulates AVFoundation microphone permission, capture, and audio-session cleanup.
 
 import AVFoundation
 import Foundation
 import OSLog
 
 @MainActor
-final class AVFoundationAudioRecordingService: NSObject, AudioRecordingServicing {
-    private var recorder: AVAudioRecorder?
+final class AVFoundationAudioRecordingService: AudioRecordingServicing {
+    private let captureSession = RecordingCaptureSessionCoordinator()
     private var recordingURL: URL?
+    private var hasReportedCaptureFailure = false
     private let eventContinuation: AsyncStream<AudioRecordingServiceEvent>.Continuation
     private var audioSessionObservation: NotificationCenter.ObservationToken?
     private static let logger = Logger(
@@ -17,14 +18,13 @@ final class AVFoundationAudioRecordingService: NSObject, AudioRecordingServicing
 
     let events: AsyncStream<AudioRecordingServiceEvent>
 
-    override init() {
+    init() {
         let eventStream = AsyncStream<AudioRecordingServiceEvent>.makeStream()
         events = eventStream.stream
         eventContinuation = eventStream.continuation
-        super.init()
+
         // iOS 27 distinguishes an app-requested deactivation from a system interruption.
-        // Only a system interruption should stop an active ambient recording; the playback
-        // service intentionally deactivates before recording begins.
+        // Only a system interruption should stop an active ambient recording.
         audioSessionObservation = NotificationCenter.default.addObserver(
             of: AVAudioSession.self,
             for: .didBecomeInactive
@@ -49,12 +49,10 @@ final class AVFoundationAudioRecordingService: NSObject, AudioRecordingServicing
     }
 
     func requestPermission() async -> Bool {
-        // AVAudioSession owns the microphone permission boundary; the system prompt is shown
-        // only once and subsequent calls return the user's existing authorization decision.
+        // AVAudioApplication is the modern microphone-permission boundary. The prompt appears
+        // only once; later requests return the existing authorization decision.
         Self.logger.debug("Microphone permission requested.")
         return await withCheckedContinuation { continuation in
-            // AVAudioApplication is the modern permission API; AVAudioSession still owns
-            // the active route and category once recording begins.
             AVAudioApplication.requestRecordPermission { granted in
                 continuation.resume(returning: granted)
             }
@@ -62,103 +60,88 @@ final class AVFoundationAudioRecordingService: NSObject, AudioRecordingServicing
     }
 
     func start() async throws {
-        let session = AVAudioSession.sharedInstance()
+        let audioSession = AVAudioSession.sharedInstance()
         Self.logger.debug("Audio recording start requested.")
-        // AVAudioSession configures the app's audio route and activation. Keeping this in the
-        // service isolates interruptions, route changes, and hardware behavior from SwiftUI.
         do {
-            try session.setCategory(.record, mode: .default, options: [.allowBluetoothHFP])
-            // iOS 27's async activation avoids blocking MainActor while the system negotiates a
-            // microphone route, which can take long enough to trigger the device responsiveness checker.
-            guard try await session.activate(options: []) else {
+            // AVAudioSession owns routing while AVCaptureSession owns the microphone sample flow.
+            // Keeping both behind this service prevents SwiftUI from managing route or lifecycle.
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.allowBluetoothHFP])
+            guard try await audioSession.activate(options: []) else {
                 throw RecordingError.activationFailed
             }
+
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("m4a")
+            try await captureSession.startAudioRecording(to: url)
+            recordingURL = url
+            hasReportedCaptureFailure = false
+            Self.logger.debug("Audio recording started in the shared capture session.")
         } catch {
-            Self.logger.error("Audio recording session activation failed.")
+            _ = try? await audioSession.deactivate(options: [.notifyOthersOnDeactivation])
+            Self.logger.error("Audio recording session startup failed.")
             throw error
         }
+    }
 
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("m4a")
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44_100,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
-        // AVAudioRecorder writes compressed AAC audio to a temporary URL; CaptureViewModel
-        // copies the finished bytes into ListenHere's managed media store after confirmation.
-        do {
-            let recorder = try AVAudioRecorder(url: url, settings: settings)
-            // Metering samples AVAudioRecorder's current power without exposing AVFoundation to
-            // the composer. The view model converts these samples into a visible live waveform.
-            recorder.isMeteringEnabled = true
-            recorder.prepareToRecord()
-            guard recorder.record() else { throw RecordingError.startFailed }
-            self.recorder = recorder
-            recordingURL = url
-            Self.logger.debug("Audio recording started.")
-        } catch {
-            try? FileManager.default.removeItem(at: url)
-            _ = try? await session.deactivate(options: [.notifyOthersOnDeactivation])
-            Self.logger.error("Audio recorder initialization failed.")
-            throw error
+    func resumeAfterCameraSessionStarts() async throws {
+        // The camera is added to the same AVCaptureSession as the microphone, so opening it does
+        // not create a competing audio client. This check keeps the UI truthful if capture ended.
+        guard captureSession.isAudioRecording else {
+            throw RecordingError.notRecording
         }
     }
 
     func stop() async throws -> AudioRecording {
-        guard let recorder, let url = recordingURL else {
-            Self.logger.error("Audio recording finalization was requested without an active recording.")
+        guard let url = recordingURL else {
+            Self.logger.error("Audio finalization was requested without an active recording.")
             throw RecordingError.notRecording
         }
-        Self.logger.debug("Audio recording finalization requested.")
-        // AVAudioRecorder reports `currentTime` as zero after `stop()`. Capture the elapsed
-        // duration first so the recording view model can validate the real clip length.
-        let duration = recorder.currentTime
-        recorder.stop()
-        self.recorder = nil
         recordingURL = nil
-        let recording = Result {
-            AudioRecording(data: try Data(contentsOf: url), duration: duration)
-        }
-        switch recording {
-        case .success:
+        hasReportedCaptureFailure = false
+        Self.logger.debug("Audio recording finalization requested.")
+
+        do {
+            let file = try await captureSession.finishAudioRecording()
+            let data = try Data(contentsOf: file.url)
+            try? FileManager.default.removeItem(at: file.url)
+            _ = try? await AVAudioSession.sharedInstance()
+                .deactivate(options: [.notifyOthersOnDeactivation])
             Self.logger.debug("Temporary audio recording read completed.")
-        case .failure:
-            Self.logger.error("Temporary audio recording read failed.")
+            return AudioRecording(data: data, duration: file.duration)
+        } catch {
+            try? FileManager.default.removeItem(at: url)
+            _ = try? await AVAudioSession.sharedInstance()
+                .deactivate(options: [.notifyOthersOnDeactivation])
+            Self.logger.error("Temporary audio recording finalization failed.")
+            throw error
         }
-        try? FileManager.default.removeItem(at: url)
-        // Stop I/O before asynchronously releasing the route, as required by AVAudioSession.
-        _ = try? await AVAudioSession.sharedInstance()
-            .deactivate(options: [.notifyOthersOnDeactivation])
-        return try recording.get()
     }
 
     func cancel() async {
         Self.logger.debug("Audio recording cancellation requested.")
-        recorder?.stop()
-        recorder = nil
-        if let recordingURL {
-            try? FileManager.default.removeItem(at: recordingURL)
-        }
+        let url = recordingURL
         recordingURL = nil
+        hasReportedCaptureFailure = false
+        await captureSession.cancelAudioRecording()
+        if let url {
+            try? FileManager.default.removeItem(at: url)
+        }
         _ = try? await AVAudioSession.sharedInstance()
             .deactivate(options: [.notifyOthersOnDeactivation])
     }
 
     func meterLevel() -> AudioMeterLevel {
-        guard let recorder, recorder.isRecording else { return .silence }
-        recorder.updateMeters()
-        return AudioMeterLevel(
-            average: Self.normalizedPower(recorder.averagePower(forChannel: 0)),
-            peak: Self.normalizedPower(recorder.peakPower(forChannel: 0))
-        )
-    }
-
-    private static func normalizedPower(_ decibels: Float) -> Double {
-        let clampedDecibels = max(-60, min(0, decibels))
-        return pow(10, Double(clampedDecibels) / 20)
+        guard captureSession.isAudioRecording, captureSession.isAudioCaptureHealthy else {
+            if hasReportedCaptureFailure == false {
+                hasReportedCaptureFailure = true
+                Self.logger.error("Microphone samples stopped while the recording UI was active.")
+                eventContinuation.yield(.recordingEndedUnexpectedly)
+            }
+            return .silence
+        }
+        hasReportedCaptureFailure = false
+        return captureSession.meterLevel()
     }
 
     @objc private func audioRouteDidChange(_ notification: Notification) {
@@ -172,7 +155,12 @@ final class AVFoundationAudioRecordingService: NSObject, AudioRecordingServicing
 
     enum RecordingError: Error {
         case activationFailed
-        case startFailed
         case notRecording
+    }
+}
+
+extension AVFoundationAudioRecordingService: RecordingPhotoCameraProviding {
+    func makeRecordingPhotoCameraController() -> RecordingPhotoCameraController {
+        RecordingPhotoCameraController(coordinator: captureSession)
     }
 }

@@ -10,7 +10,7 @@ struct MemoryListView: View {
 
     private let openMemory: (UUID) -> Void
     private let makeCaptureViewModel: () -> CaptureViewModel
-    private let makeVoiceRecordingViewModel: (CaptureViewModel) -> VoiceRecordingViewModel
+    private let makeVoiceRecordingViewModel: (CaptureViewModel) -> CaptureRecordingSession
     private let makeCaptureMediaPreviewViewModel: (CaptureViewModel) -> CaptureMediaPreviewViewModel
     private let makeCameraCaptureViewModel: () -> CameraCaptureViewModel
     private let makeMemoryEditSession: (MemorySummary) -> MemoryEditSessionViewModel
@@ -22,7 +22,7 @@ struct MemoryListView: View {
         viewModel: JournalDetailViewModel,
         openMemory: @escaping (UUID) -> Void,
         makeCaptureViewModel: @escaping () -> CaptureViewModel,
-        makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> VoiceRecordingViewModel,
+        makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> CaptureRecordingSession,
         makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> CaptureMediaPreviewViewModel,
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeMemoryEditSession: @escaping (MemorySummary) -> MemoryEditSessionViewModel,

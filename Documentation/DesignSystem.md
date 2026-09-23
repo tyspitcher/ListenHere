@@ -45,6 +45,16 @@ not intended UI assets.
   Memories & Delete Journal**, and **Cancel**.
 - Use full-screen presentation for camera capture and immersive editing. Keep active recording
   visible in the composer's sound tile with a Stop label, stop icon, elapsed timer, and waveform.
+  When taking a photo during an active recording, show the same recording status in the full-screen
+  camera and keep its shutter immediately available. Use a solid-black lower control area with
+  discrete lens-style zoom buttons fully above the viewfinder edge, matching the spatial hierarchy
+  of the system camera. Populate those buttons from the active camera's reported lens-transition
+  and native-resolution factors; never assume a fixed model or lens count. Support pinch-to-zoom,
+  tap-to-focus with a visible yellow reticle and automatic exposure at that point, supported flash
+  modes, and a clear **Retake** or **Use Photo** review step.
+  Keep controls inside the safe area and suppress the shutter sound while recording wherever the
+  device and local rules permit it. After accepting a photo, keep a discoverable remove action in
+  the composer so the person can take another without stopping the recording.
 - Use `PhotosPicker` for photo-library selection unless a confirmed requirement needs more.
 - Use `searchable()` for journal and place search where it fits the screen.
 - Use system alerts and permission prompts. A custom rationale screen may explain the benefit

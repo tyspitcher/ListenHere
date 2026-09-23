@@ -9,6 +9,26 @@ enum VoiceRecordingState: Equatable {
     case recording(elapsed: TimeInterval, levels: [AudioMeterLevel])
     case finalizing
     case failed(VoiceRecordingFailure)
+
+    /// A live camera capture stays inside ListenHere's process, so it can safely continue an
+    /// active ambient recording. System pickers remain unavailable until recording finishes.
+    var permitsPhotoCapture: Bool {
+        switch self {
+        case .idle, .recording, .failed:
+            true
+        case .requestingPermission, .preparingRecording, .finalizing:
+            false
+        }
+    }
+
+    var permitsMediaSourceSelection: Bool {
+        switch self {
+        case .idle, .failed:
+            true
+        case .requestingPermission, .preparingRecording, .recording, .finalizing:
+            false
+        }
+    }
 }
 
 enum VoiceRecordingFailure: Equatable {
