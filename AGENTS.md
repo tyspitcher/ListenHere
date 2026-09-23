@@ -91,13 +91,14 @@ Core behavior and terminology:
 - Create a memory in one large modal composer that previews photo and sound in place beside
   optional title and description fields. Save remains visible and is enabled only after at
   least one medium has been added; metadata alone is not a savable memory.
-- Support **Take Photo**, **Choose from Library**, **Voice Recording**, and **Choose Audio File**
-  for sound-only memories. Voice Recording is an in-app AVFoundation flow; do not route the
-  user to Apple's separate Voice Memos app. Files selections must be copied into managed media
-  storage while the security-scoped URL is available.
-- Present photo and sound source choices from adaptive popovers in the composer. Keep camera
-  capture full screen through the system camera, while photo-library and Files selection use
-  their native pickers. Active recording remains inside the sound tile in the composer.
+- Support four direct media sources: **Take Photo**, **Choose from Library**, **Record Sound**,
+  and **Choose Audio File**. Record Sound and Choose Audio File allow sound-only memories.
+  Record Sound is an in-app AVFoundation flow; do not route the user to Apple's separate Voice
+  Memos app. Files selections must be copied into managed media storage while the
+  security-scoped URL is available.
+- Present all four source actions directly in the composer, grouped in the Photo and Sound
+  tiles. Keep camera capture full screen through the system camera, while photo-library and
+  Files selection use their native pickers. Active recording remains inside the sound tile.
 - When permission is granted, use capture location and available photo metadata as helpful
   starting values. Location remains optional and editable, and denial must not block capture.
 - Preserve distinct location candidates when photo metadata and the device location captured

@@ -28,6 +28,10 @@ final class MemoryDetailViewModel {
         access.isRecentlyDeleted && recoveryService != nil
     }
 
+    var canShare: Bool {
+        access.permitsSharing
+    }
+
     private let memoryID: UUID
     private let access: MemoryDetailAccess
     private let repository: any MemoryRepository
@@ -70,6 +74,21 @@ final class MemoryDetailViewModel {
             journalRepository: journalRepository,
             mediaStore: mediaEditor
         )
+    }
+
+    func sharingAvailability(for memory: MemorySummary) -> MemorySharingAvailability? {
+        guard canShare else { return nil }
+
+        switch (memory.thumbnail != nil, memory.hasAudio) {
+        case (true, true):
+            return .video
+        case (false, true):
+            return .needsBackground
+        case (true, false):
+            return .photo
+        case (false, false):
+            return .unavailable
+        }
     }
 
     func recover(at date: Date = Date()) -> Bool {
