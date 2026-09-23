@@ -23,7 +23,7 @@ struct CapturePhotoTile: View {
             if hasPhoto {
                 photoPreview
             } else {
-                addPhotoButton
+                photoSourceButtons
             }
         }
         .frame(maxWidth: .infinity, minHeight: 180)
@@ -45,30 +45,35 @@ struct CapturePhotoTile: View {
         theme.palette(for: colorScheme)
     }
 
-    private var addPhotoButton: some View {
+    private var photoSourceButtons: some View {
         Group {
             if photoLibraryIsImporting {
                 ProgressView("Adding Photo")
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Menu {
-                    Button("Take Photo", systemImage: "camera", action: takePhoto)
-                    Button("Choose from Library", systemImage: "photo.on.rectangle") {
-                        photoLibraryIsPresented = true
-                    }
-                } label: {
-                    VStack(spacing: 12) {
-                        Image(systemName: "photo.badge.plus")
-                            .font(.largeTitle)
-                        Text("Add Photo")
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 180)
-                    .contentShape(.rect)
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Photo", systemImage: "photo")
+                        .font(.headline)
+                        .foregroundStyle(palette.primaryText)
+                        .accessibilityAddTraits(.isHeader)
+
+                    CaptureSourceButton(
+                        title: "Take Photo",
+                        systemImage: "camera",
+                        accessibilityIdentifier: "capture.takePhoto",
+                        action: takePhoto
+                    )
+
+                    CaptureSourceButton(
+                        title: "Choose from Library",
+                        systemImage: "photo.on.rectangle",
+                        accessibilityIdentifier: "capture.chooseFromLibrary",
+                        action: presentPhotoLibrary
+                    )
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(palette.accent)
-                .accessibilityHint("Choose the camera or Photo Library.")
+                .padding()
+                .tint(palette.accent)
+                .accessibilityElement(children: .contain)
             }
         }
     }
@@ -103,5 +108,9 @@ struct CapturePhotoTile: View {
 
     private func presentRemovalConfirmation() {
         removalConfirmationIsPresented = true
+    }
+
+    private func presentPhotoLibrary() {
+        photoLibraryIsPresented = true
     }
 }

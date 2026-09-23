@@ -36,8 +36,9 @@ not intended UI assets.
 
 - Use `NavigationStack` and value-based destinations for pushed routes.
 - Use toolbar items and `Menu` for contextual actions such as a memory's ellipsis menu.
-- Use one large modal sheet for the New Memory composer. Use adaptive popovers for its photo
-  and sound source choices, preserving native compact-sheet adaptation on iPhone.
+- Use one large modal sheet for the New Memory composer. Present **Take Photo**, **Choose from
+  Library**, **Record Sound**, and **Choose Audio File** as direct native buttons grouped in its
+  Photo and Sound tiles.
 - For a non-empty journal, use a native destructive confirmation with **Delete Journal Only**,
   **Delete Journal & Memories**, and **Cancel**. If journal-only is chosen, follow with a native
   sheet titled **Move Memories** containing a journal picker, the affected count, **Move
@@ -54,8 +55,9 @@ not intended UI assets.
 
 ## New Memory Composer
 
-- Present Add Photo and Add Sound as large media tiles. Lay them out side by side when space
-  permits and stack them at accessibility Dynamic Type sizes.
+- Present Photo and Sound as large media tiles. While empty, each tile contains two equally
+  emphasized, full-width source buttons with text and familiar SF Symbols. Lay the tiles out
+  side by side when space permits and stack them at accessibility Dynamic Type sizes.
 - Replace a source tile with its media preview after import. Photo uses aspect fill; sound uses
   a waveform, explicit play or pause control, playback progress, and elapsed and total time.
 - Put optional Title and Description directly below the media tiles. Pin Save Memory above the
@@ -167,7 +169,7 @@ Durable copies for Product Design workflows are stored under:
 | Places map | `listenhere-figma-places-map.png` | Map browsing, search, selection, and memory preview concept |
 | Journals grid | `listenhere-figma-journals-grid.png` | Searchable journal collection and creation concept |
 | Memory detail, hero | `listenhere-figma-memory-detail-hero.png` | Media, playback, title, caption, edit, and share hierarchy |
-| Create-memory source sheet | `listenhere-figma-create-memory-source-sheet.png` | Take Photo, Choose from Library, and Voice Recording choices |
+| Create-memory source sheet | `listenhere-figma-create-memory-source-sheet.png` | Legacy source-label hierarchy reference; the current composer presents four direct actions |
 | Camera rationale | `listenhere-figma-camera-permission-rationale.png` | Pre-permission explanation concept; do not imitate the system prompt |
 | Camera capture | `listenhere-figma-camera-live-capture.png` | Full-screen capture controls and cancellation concept |
 | Captured-photo review | `listenhere-figma-camera-photo-review.png` | Retake or accept decision |

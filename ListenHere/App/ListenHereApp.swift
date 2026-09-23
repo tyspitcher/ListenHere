@@ -45,11 +45,22 @@ struct ListenHereApp: App {
             modelContext: container.mainContext,
             mediaStore: mediaStore
         )
+        let navigationStateStore: (any NavigationStateStore)?
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-reset-navigation") {
+            navigationStateStore = InMemoryNavigationStateStore()
+        } else {
+            navigationStateStore = nil
+        }
+#else
+        navigationStateStore = nil
+#endif
         appContainer = AppContainer(
             memoryRepository: memoryRepository,
             journalRepository: journalRepository,
             recentlyDeletedRepository: recentlyDeletedRepository,
-            mediaStore: mediaStore
+            mediaStore: mediaStore,
+            navigationStateStore: navigationStateStore
         )
 
         do {

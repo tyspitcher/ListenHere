@@ -57,10 +57,10 @@ App shell
 |   |   |-- Edit Memory
 |   |   `-- Share Memory
 |   `-- New Memory composer sheet
-|       |-- Add Photo popover
+|       |-- Photo tile
 |       |   |-- Take Photo (full-screen system camera)
 |       |   `-- Choose from Library
-|       |-- Add Sound popover
+|       |-- Sound tile
 |       |   |-- Record Sound (in-place recording)
 |       |   `-- Choose Audio File from Files
 |       `-- In-place media preview, metadata, and Save
@@ -146,7 +146,7 @@ from mistaking empty files for implemented features.
 | Places map | `ListenHere/Features/Places/PlacesView.swift` and `LocationPickerSheet.swift` | Searchable canonical-location map, nearby-memory grouping, selected-place filtered list, and location-selection pin sheet with reverse-geocoded landmark or city names implemented |
 | Location naming | `ListenHere/Features/Places/MapKitLocationNameResolver.swift` and `MemoryLocationNameBackfillService.swift` | MapKit reverse geocoding is isolated behind `LocationNameResolving`; capture starts naming candidates immediately, browsing retries prior unnamed records, and the resolved canonical name persists without overwriting a newer manual location |
 | Memory detail | `ListenHere/Features/Memories/MemoryDetailView.swift`, `MemorySharingAvailability.swift`, and `ShareMemorySheet.swift` | Displays managed photos with a bottom-trailing ambient-sound overlay, including elapsed and total playback time; sound-only memories retain a clear playback button, and saved-memory editing is available. An active memory distinguishes photo sharing, photo-and-sound video sharing, and the sound-only background prerequisite; actual export remains pending |
-| Create Memory composer | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | One large sheet owns source popovers, in-place media previews, optional metadata, pinned Save, recording presentation, cancellation, and cleanup recovery; there is no capture navigation route |
+| Create Memory composer | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | One large sheet presents four direct source actions grouped in Photo and Sound tiles and owns in-place media previews, optional metadata, pinned Save, recording presentation, cancellation, and cleanup recovery; there is no capture navigation route |
 | Photo Library picker adapter | `ListenHere/Features/Capture/PhotoLibraryPicker.swift` | Native `PhotosPicker` loads the selected photo while its access is valid, then hands bytes to the capture flow; it stores no Photos reference |
 | Camera adapter | `ListenHere/Features/Capture/SystemCameraPicker.swift` | Native `UIImagePickerController` camera runs full screen, returns captured bytes to managed storage, and never writes into the user's Photos library |
 | Audio file picker | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | Native `fileImporter` reads a security-scoped audio URL and copies bytes into managed media; no external URL is persisted |

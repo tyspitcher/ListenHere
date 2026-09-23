@@ -40,7 +40,7 @@ struct CaptureSoundTile: View {
     private var recordingControl: some View {
         switch recordingViewModel.state {
         case .idle, .failed:
-            addSoundButton
+            soundSourceButtons
         case .requestingPermission:
             ProgressView("Requesting Access")
                 .frame(maxWidth: .infinity, minHeight: 180)
@@ -55,24 +55,31 @@ struct CaptureSoundTile: View {
         }
     }
 
-    private var addSoundButton: some View {
-        Menu {
-            Button("Record Sound", systemImage: "mic.fill", action: startRecording)
-            Button("Choose Audio File", systemImage: "doc.badge.plus", action: chooseAudioFile)
-        } label: {
-            VStack(spacing: 12) {
-                Image(systemName: "waveform.badge.plus")
-                    .font(.largeTitle)
-                Text("Add Sound")
-                    .font(.headline)
-            }
-            .frame(maxWidth: .infinity, minHeight: 180)
-            .contentShape(.rect)
+    private var soundSourceButtons: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Sound", systemImage: "waveform")
+                .font(.headline)
+                .foregroundStyle(palette.primaryText)
+                .accessibilityAddTraits(.isHeader)
+
+            CaptureSourceButton(
+                title: "Record Sound",
+                systemImage: "mic",
+                accessibilityIdentifier: "capture.recordSound",
+                action: startRecording
+            )
+
+            CaptureSourceButton(
+                title: "Choose Audio File",
+                systemImage: "folder",
+                accessibilityIdentifier: "capture.chooseAudioFile",
+                action: chooseAudioFile
+            )
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(palette.secondaryAccent)
+        .padding()
+        .tint(palette.secondaryAccent)
         .disabled(isEnabled == false)
-        .accessibilityHint("Choose recording or an audio file.")
+        .accessibilityElement(children: .contain)
     }
 
     private var stopRecordingButton: some View {

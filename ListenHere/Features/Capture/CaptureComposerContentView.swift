@@ -69,7 +69,7 @@ struct CaptureComposerContentView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .onGeometryChange(for: Bool.self) { proxy in
-            proxy.size.width < 360
+            proxy.size.width < 500
         } action: { isNarrow in
             mediaWidthIsNarrow = isNarrow
         }
