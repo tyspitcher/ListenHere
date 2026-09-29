@@ -63,6 +63,10 @@ not intended UI assets.
   destinations, including Messages, Mail, Files, Photos, and supported social or cloud apps. While
   creating a video, replace the format choices with a determinate progress indicator and concise
   copy explaining that preparation may take a moment.
+  Keep format-button icons, titles, and captions leading-aligned with balanced horizontal
+  content padding so the choices are easy to scan and have room inside their native borders.
+  Size the symbols to the title-and-caption block with a consistent, Dynamic Type-scaled icon
+  column and a clear gap before the text; preserve symbol proportions when labels wrap.
 - Use `searchable()` for journal and place search where it fits the screen.
 - Use system alerts and permission prompts. A custom rationale screen may explain the benefit
   immediately before the system prompt, but must not imitate the system permission dialog.
