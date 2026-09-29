@@ -9,21 +9,25 @@ struct AppBackground: View {
     var body: some View {
         let palette = theme.palette(for: colorScheme)
 
-        ZStack {
-            palette.appBackground
+        GeometryReader { proxy in
+            ZStack {
+                palette.appBackground
 
-            switch theme.backdrop(for: colorScheme) {
-            case .solid:
-                EmptyView()
-            case .image(let assetName, let opacity):
-                Image(assetName)
-                    .resizable()
-                    .scaledToFill()
-                    .opacity(opacity)
+                switch theme.backdrop(for: colorScheme) {
+                case .solid:
+                    EmptyView()
+                case .image(let assetName, let opacity):
+                    Image(assetName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                        .opacity(opacity)
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .ignoresSafeArea()
-        .clipped()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

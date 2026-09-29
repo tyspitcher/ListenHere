@@ -5,7 +5,7 @@ struct MemoryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: MemoryDetailViewModel
     @State private var editSession: MemoryEditSessionViewModel?
-    @State private var sharingAvailability: MemorySharingAvailability?
+    @State private var sharingViewModel: MemoryShareViewModel?
     private let makeVoiceRecordingViewModel: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
     private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
@@ -49,7 +49,7 @@ struct MemoryDetailView: View {
                 ToolbarItemGroup(placement: .primaryAction) {
                     if viewModel.canShare {
                         Button("Share Memory", systemImage: "square.and.arrow.up") {
-                            sharingAvailability = viewModel.sharingAvailability(for: memory)
+                            sharingViewModel = viewModel.makeShareViewModel(for: memory)
                         }
                     }
 
@@ -70,8 +70,8 @@ struct MemoryDetailView: View {
                 await viewModel.load()
             }
         }
-        .sheet(item: $sharingAvailability) { availability in
-            ShareMemorySheet(availability: availability)
+        .sheet(item: $sharingViewModel) { sharingViewModel in
+            ShareMemorySheet(viewModel: sharingViewModel)
         }
         .alert("Couldn’t Recover Memory", isPresented: recoveryErrorIsPresented) {
             Button("OK", action: viewModel.dismissRecoveryError)

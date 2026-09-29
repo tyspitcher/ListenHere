@@ -56,6 +56,13 @@ not intended UI assets.
   device and local rules permit it. After accepting a photo, keep a discoverable remove action in
   the composer so the person can take another without stopping the recording.
 - Use `PhotosPicker` for photo-library selection unless a confirmed requirement needs more.
+- From an active memory, present a concise share explanation followed by only the formats that
+  exist: **Share Photo**, **Share Audio**, and, when both exist, **Share Video**. The video is a
+  9:16 combination of the photo and ambient sound. After format selection, use the native system
+  share sheet rather than a custom app list; it shows only the current device's eligible apps and
+  destinations, including Messages, Mail, Files, Photos, and supported social or cloud apps. While
+  creating a video, replace the format choices with a determinate progress indicator and concise
+  copy explaining that preparation may take a moment.
 - Use `searchable()` for journal and place search where it fits the screen.
 - Use system alerts and permission prompts. A custom rationale screen may explain the benefit
   immediately before the system prompt, but must not imitate the system permission dialog.

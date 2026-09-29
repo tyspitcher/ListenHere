@@ -4,18 +4,18 @@ import Foundation
 
 enum MemorySharingAvailability: Equatable, Identifiable, Sendable {
     case photo
-    case video
-    case needsBackground
+    case audio
+    case photoAndAudio
     case unavailable
 
     var id: String {
         switch self {
         case .photo:
             "photo"
-        case .video:
-            "video"
-        case .needsBackground:
-            "needs-background"
+        case .audio:
+            "audio"
+        case .photoAndAudio:
+            "photo-and-audio"
         case .unavailable:
             "unavailable"
         }

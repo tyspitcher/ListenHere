@@ -38,9 +38,9 @@ For visible styling, component behavior, theming, or Figma references, read
 - A recently deleted journal can be opened to browse the memories deleted with it. This view is
   read-only and provides in-context recovery; creating, editing, or deleting remains unavailable
   until the journal is recovered.
-- Sharing is offered only from an active memory. A photo-only memory shares its original image;
-  a photo-and-sound memory exports a video; and a sound-only memory needs a saved title
-  background before video export.
+- Sharing is offered only from an active memory. A photo-only memory shares its original image,
+  a sound-only memory shares its original audio file, and a photo-and-sound memory offers all
+  three explicit choices: original photo, original audio, or an exported video that combines both.
 - Places are a way to browse memories; location does not own a memory.
 - Audio never autoplays. Playback always follows a deliberate user action.
 - Restore the last valid stable browsing path. If a referenced memory or journal no longer
@@ -145,7 +145,7 @@ from mistaking empty files for implemented features.
 | Journal detail / filtered memories | `ListenHere/Features/Journals/MemoryListView.swift` | Active journals support filtered memories, per-memory editing, assignment, and soft deletion; deleted journals reuse the view in a read-only recovery mode |
 | Places map | `ListenHere/Features/Places/PlacesView.swift` and `LocationPickerSheet.swift` | Searchable canonical-location map, nearby-memory grouping, selected-place filtered list, and location-selection pin sheet with reverse-geocoded landmark or city names implemented |
 | Location naming | `ListenHere/Features/Places/MapKitLocationNameResolver.swift` and `MemoryLocationNameBackfillService.swift` | MapKit reverse geocoding is isolated behind `LocationNameResolving`; capture starts naming candidates immediately, browsing retries prior unnamed records, and the resolved canonical name persists without overwriting a newer manual location |
-| Memory detail | `ListenHere/Features/Memories/MemoryDetailView.swift`, `MemorySharingAvailability.swift`, and `ShareMemorySheet.swift` | Displays managed photos with a bottom-trailing ambient-sound overlay, including elapsed and total playback time; sound-only memories retain a clear playback button, and saved-memory editing is available. An active memory distinguishes photo sharing, photo-and-sound video sharing, and the sound-only background prerequisite; actual export remains pending |
+| Memory detail and sharing | `ListenHere/Features/Memories/MemoryDetailView.swift`, `MemorySharingAvailability.swift`, `MemoryShareViewModel.swift`, `ShareMemorySheet.swift`, and `AVFoundationMemoryVideoExporter.swift` | Displays managed photos with a bottom-trailing ambient-sound overlay, including elapsed and total playback time; sound-only memories retain a clear playback button, and saved-memory editing is available. An active memory offers the original photo, original audio, or a temporary 9:16 still-image-plus-audio video when both exist, then sends the selected file to the native system share sheet and removes temporary video output afterwards |
 | Create Memory composer | `ListenHere/Features/Capture/CaptureComposerSheet.swift` | One large sheet presents four direct source actions grouped in Photo and Sound tiles and owns in-place media previews, optional metadata, pinned Save, recording presentation, cancellation, and cleanup recovery; there is no capture navigation route |
 | Photo Library picker adapter | `ListenHere/Features/Capture/PhotoLibraryPicker.swift` | Native `PhotosPicker` loads the selected photo while its access is valid, then hands bytes to the capture flow; it stores no Photos reference |
 | Camera adapters | `ListenHere/Features/Capture/SystemCameraPicker.swift` and `RecordingPhotoCamera.swift` | The native `UIImagePickerController` camera runs full screen for ordinary captures. During active ambient recording, the in-app still camera adds a camera input and `AVCapturePhotoOutput` to the same capture session already receiving microphone samples; it never adds a movie output. This prevents a second capture session from competing for the microphone and suppresses the shutter sound where iOS permits. Once a person accepts a photo, that shared camera graph remains configured until the ambient recording ends, avoiding a second graph reconfiguration during the photo-accept transition. Neither adapter writes into the user's Photos library. |
@@ -157,7 +157,7 @@ from mistaking empty files for implemented features.
 | Journal assignment sheet | `ListenHere/Features/Journals/JournalAssignmentSheet.swift` | Native staged multi-selection is integrated into saved-memory editing and each active-memory ellipsis menu |
 | Recently Deleted | `ListenHere/Features/RecentlyDeleted/RecentlyDeletedView.swift` | Implemented and linked from Library; deleted memories and journals open read-only detail views with in-context recovery |
 | Memory editing | `ListenHere/Features/Memories/MemoryEditorSheet.swift` and `MemoryEditSessionViewModel.swift` | Photo/sound replacement or removal, metadata/date changes, journal assignments, location-source selection, and manual MapKit pin placement are implemented. One canonical location and all available source candidates persist for future edits |
-| Video export and sharing | `Features/Sharing/` | Missing |
+| Video export and sharing | `ListenHere/Features/Memories/AVFoundationMemoryVideoExporter.swift` and `SystemShareSheet.swift` | Implemented as a focused AVFoundation export service plus UIKit system-share adapter; video and audio inputs are written concurrently with visible preparation progress, and exported MP4 files are temporary and never persisted as memory media |
 | Settings | `Features/Settings/SettingsView.swift` | Missing |
 | Memory model | `ListenHere/Domain/Models/Memory.swift` | Implemented with metadata, soft deletion, and journals |
 | Journal model | `ListenHere/Domain/Models/Journal.swift` | Implemented with default state, soft deletion, and memories |
