@@ -32,17 +32,10 @@ struct ShareMemorySheet: View {
                                     await viewModel.prepareShare(option)
                                 }
                             } label: {
-                                Label {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(option.title)
-                                        Text(option.detail)
-                                            .font(.footnote)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } icon: {
-                                    Image(systemName: option.systemImage)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                ShareOptionLabel(option: option)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(isPreparing)
@@ -168,6 +161,37 @@ struct ShareMemorySheet: View {
                 if isPresented == false { viewModel.dismissFailure() }
             }
         )
+    }
+}
+
+private struct ShareOptionLabel: View {
+    let option: MemoryShareOption
+
+    @ScaledMetric(relativeTo: .body) private var iconColumnWidth = 52
+    @State private var textHeight: CGFloat = 38
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: option.systemImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: iconColumnWidth, height: textHeight)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(option.title)
+                Text(option.detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { geometry in
+                geometry.size.height
+            } action: { height in
+                textHeight = height
+            }
+        }
     }
 }
 
