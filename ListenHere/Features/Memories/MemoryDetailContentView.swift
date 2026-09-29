@@ -6,9 +6,11 @@ struct MemoryDetailContentView: View {
     let memory: MemorySummary
     let photoURL: URL?
     let audioPlaybackState: AudioPlaybackState
+    let waveformSamples: [Double]
     let isRecentlyDeleted: Bool
     let recoverMemory: () -> Void
     let togglePlayback: () -> Void
+    let seek: (Double) -> Void
 
     var body: some View {
         ScrollView {
@@ -19,15 +21,15 @@ struct MemoryDetailContentView: View {
 
                 if memory.thumbnail != nil {
                     MemoryDetailPhotoView(thumbnail: memory.thumbnail, photoURL: photoURL)
-                        .overlay(alignment: .bottomTrailing) {
-                            if memory.hasAudio {
-                                AudioPlaybackImageOverlay(
-                                    playbackState: audioPlaybackState,
-                                    togglePlayback: togglePlayback
-                                )
-                                .padding(12)
-                            }
-                        }
+                }
+
+                if memory.hasAudio {
+                    AudioWaveformPlayerView(
+                        samples: waveformSamples,
+                        playbackState: audioPlaybackState,
+                        togglePlayback: togglePlayback,
+                        seek: seek
+                    )
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -52,13 +54,6 @@ struct MemoryDetailContentView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                }
-
-                if memory.hasAudio, memory.thumbnail == nil {
-                    AudioPlaybackControls(
-                        playbackState: audioPlaybackState,
-                        togglePlayback: togglePlayback
-                    )
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

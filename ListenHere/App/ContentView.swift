@@ -37,6 +37,9 @@ struct ContentView: View {
                 makeVoiceRecordingViewModelForEditing: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
                 },
+                makeAudioPreviewViewModelForEditing: { editSession in
+                    container.makeAudioPreviewViewModel(editSession: editSession)
+                },
                 makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )
             .navigationDestination(for: AppRoute.self) { route in
@@ -78,6 +81,9 @@ struct ContentView: View {
                 makeVoiceRecordingViewModelForEditing: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
                 },
+                makeAudioPreviewViewModelForEditing: { editSession in
+                    container.makeAudioPreviewViewModel(editSession: editSession)
+                },
                 makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )
         case .places:
@@ -97,6 +103,9 @@ struct ContentView: View {
                 makeVoiceRecordingViewModel: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
                 },
+                makeAudioPreviewViewModel: { editSession in
+                    container.makeAudioPreviewViewModel(editSession: editSession)
+                },
                 makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )
         case .recentlyDeletedMemory(let id):
@@ -107,6 +116,9 @@ struct ContentView: View {
                 ),
                 makeVoiceRecordingViewModel: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
+                },
+                makeAudioPreviewViewModel: { editSession in
+                    container.makeAudioPreviewViewModel(editSession: editSession)
                 },
                 makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )
@@ -131,6 +143,9 @@ struct ContentView: View {
                 makeMemoryJournalAssignmentViewModel: container.makeMemoryJournalAssignmentViewModel,
                 makeVoiceRecordingViewModelForEditing: { editSession in
                     container.makeVoiceRecordingViewModel(editSession: editSession)
+                },
+                makeAudioPreviewViewModelForEditing: { editSession in
+                    container.makeAudioPreviewViewModel(editSession: editSession)
                 },
                 makeLocationPickerViewModel: container.makeLocationPickerViewModel
             )

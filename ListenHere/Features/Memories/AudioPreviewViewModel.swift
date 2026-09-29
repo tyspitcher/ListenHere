@@ -1,42 +1,36 @@
-// Owns waveform extraction and deliberate playback for audio already imported into a capture draft.
+// Owns waveform extraction and deliberate playback for one managed audio file.
 
 import Foundation
 import Observation
 
 @MainActor
 @Observable
-final class CaptureMediaPreviewViewModel {
+final class AudioPreviewViewModel {
     private(set) var audioPlaybackState: AudioPlaybackState = .unavailable
     private(set) var waveformSamples: [Double] = []
 
-    var playbackProgress: Double {
-        switch audioPlaybackState {
-        case .playing(let elapsed, let duration), .paused(let elapsed, let duration):
-            duration > 0 ? elapsed / duration : 0
-        case .unavailable, .failed, .ready:
-            0
-        }
-    }
-
-    private let captureViewModel: CaptureViewModel
+    private let audioURL: @MainActor () -> URL?
+    private let fallbackDuration: @MainActor () -> TimeInterval?
     private let audioPlaybackService: any AudioPlaybackServicing
     private let waveformAnalyzer: any AudioWaveformAnalyzing
     private var playbackRefreshTask: Task<Void, Never>?
     private var loadedAudioURL: URL?
 
     init(
-        captureViewModel: CaptureViewModel,
+        audioURL: @escaping @MainActor () -> URL?,
+        fallbackDuration: @escaping @MainActor () -> TimeInterval?,
         audioPlaybackService: any AudioPlaybackServicing,
         waveformAnalyzer: any AudioWaveformAnalyzing
     ) {
-        self.captureViewModel = captureViewModel
+        self.audioURL = audioURL
+        self.fallbackDuration = fallbackDuration
         self.audioPlaybackService = audioPlaybackService
         self.waveformAnalyzer = waveformAnalyzer
     }
 
     func loadAudio() async {
         await resetAudio()
-        guard let audioURL = captureViewModel.managedAudioURL else { return }
+        guard let audioURL = audioURL() else { return }
         loadedAudioURL = audioURL
 
         do {
@@ -78,6 +72,16 @@ final class CaptureMediaPreviewViewModel {
         }
     }
 
+    func seek(to progress: Double) {
+        guard loadedAudioURL != nil,
+              let duration = currentAudioDuration,
+              duration > 0 else {
+            return
+        }
+        audioPlaybackService.seek(to: min(max(0, progress), 1) * duration)
+        updatePlaybackState()
+    }
+
     func stopPlayback() async {
         playbackRefreshTask?.cancel()
         playbackRefreshTask = nil
@@ -102,7 +106,7 @@ final class CaptureMediaPreviewViewModel {
 
     private var currentAudioDuration: TimeInterval? {
         let duration = audioPlaybackService.duration
-        return duration > 0 ? duration : captureViewModel.draft.audioDurationSeconds
+        return duration > 0 ? duration : fallbackDuration()
     }
 
     private func startPlaybackRefresh() {

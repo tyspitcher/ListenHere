@@ -143,6 +143,7 @@ final class AppContainer {
             mediaEditor: mediaStore,
             recoveryService: recentlyDeletedRepository,
             audioPlaybackService: audioPlaybackServiceFactory(),
+            waveformAnalyzer: waveformAnalyzerFactory(),
             videoExporter: videoExporterFactory(),
             locationNameBackfiller: makeLocationNameBackfiller()
         )
@@ -204,9 +205,21 @@ final class AppContainer {
 
     func makeCaptureMediaPreviewViewModel(
         captureViewModel: CaptureViewModel
-    ) -> CaptureMediaPreviewViewModel {
-        CaptureMediaPreviewViewModel(
-            captureViewModel: captureViewModel,
+    ) -> AudioPreviewViewModel {
+        AudioPreviewViewModel(
+            audioURL: { captureViewModel.managedAudioURL },
+            fallbackDuration: { captureViewModel.draft.audioDurationSeconds },
+            audioPlaybackService: audioPlaybackServiceFactory(),
+            waveformAnalyzer: waveformAnalyzerFactory()
+        )
+    }
+
+    func makeAudioPreviewViewModel(
+        editSession: MemoryEditSessionViewModel
+    ) -> AudioPreviewViewModel {
+        AudioPreviewViewModel(
+            audioURL: { editSession.audioURL },
+            fallbackDuration: { editSession.audioDurationSeconds },
             audioPlaybackService: audioPlaybackServiceFactory(),
             waveformAnalyzer: waveformAnalyzerFactory()
         )

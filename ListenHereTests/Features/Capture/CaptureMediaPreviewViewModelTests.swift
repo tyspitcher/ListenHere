@@ -14,8 +14,9 @@ struct CaptureMediaPreviewViewModelTests {
             durationSeconds: 12
         )
         let playbackService = CapturePlaybackServiceStub(duration: 12)
-        let viewModel = CaptureMediaPreviewViewModel(
-            captureViewModel: captureViewModel,
+        let viewModel = AudioPreviewViewModel(
+            audioURL: { captureViewModel.managedAudioURL },
+            fallbackDuration: { captureViewModel.draft.audioDurationSeconds },
             audioPlaybackService: playbackService,
             waveformAnalyzer: WaveformAnalyzerStub(samples: [0.2, 0.8])
         )
@@ -36,8 +37,9 @@ struct CaptureMediaPreviewViewModelTests {
             preferredFileExtension: "m4a",
             durationSeconds: 12
         )
-        let viewModel = CaptureMediaPreviewViewModel(
-            captureViewModel: captureViewModel,
+        let viewModel = AudioPreviewViewModel(
+            audioURL: { captureViewModel.managedAudioURL },
+            fallbackDuration: { captureViewModel.draft.audioDurationSeconds },
             audioPlaybackService: CapturePlaybackServiceStub(duration: 12),
             waveformAnalyzer: WaveformAnalyzerStub(error: CaptureMediaPreviewTestError.unavailable)
         )
@@ -58,8 +60,9 @@ struct CaptureMediaPreviewViewModelTests {
             durationSeconds: 12
         )
         let playbackService = CapturePlaybackServiceStub(duration: 12)
-        let viewModel = CaptureMediaPreviewViewModel(
-            captureViewModel: captureViewModel,
+        let viewModel = AudioPreviewViewModel(
+            audioURL: { captureViewModel.managedAudioURL },
+            fallbackDuration: { captureViewModel.draft.audioDurationSeconds },
             audioPlaybackService: playbackService,
             waveformAnalyzer: WaveformAnalyzerStub(samples: [0.5])
         )
@@ -71,6 +74,38 @@ struct CaptureMediaPreviewViewModelTests {
         #expect(playbackService.stopCount == 2)
         #expect(viewModel.audioPlaybackState == .unavailable)
         #expect(viewModel.waveformSamples.isEmpty)
+    }
+
+    @Test("Seeking updates the preview position and preserves playback state")
+    func seekingUpdatesPreviewPosition() async {
+        let mediaStore = InMemoryManagedMediaStore()
+        let captureViewModel = makeCaptureViewModel(mediaStore: mediaStore)
+        captureViewModel.importAudio(
+            Data("audio".utf8),
+            preferredFileExtension: "m4a",
+            durationSeconds: 20
+        )
+        let playbackService = CapturePlaybackServiceStub(duration: 20)
+        let viewModel = AudioPreviewViewModel(
+            audioURL: { captureViewModel.managedAudioURL },
+            fallbackDuration: { captureViewModel.draft.audioDurationSeconds },
+            audioPlaybackService: playbackService,
+            waveformAnalyzer: WaveformAnalyzerStub()
+        )
+        await viewModel.loadAudio()
+
+        viewModel.seek(to: 0.75)
+
+        #expect(playbackService.currentTime == 15)
+        #expect(playbackService.isPlaying == false)
+        #expect(viewModel.audioPlaybackState == .paused(elapsed: 15, duration: 20))
+
+        viewModel.togglePlayback()
+        viewModel.seek(to: 0.25)
+
+        #expect(playbackService.currentTime == 5)
+        #expect(playbackService.isPlaying)
+        #expect(viewModel.audioPlaybackState == .playing(elapsed: 5, duration: 20))
     }
 
     private func makeCaptureViewModel(
@@ -124,6 +159,10 @@ private final class CapturePlaybackServiceStub: AudioPlaybackServicing {
 
     func pause() {
         isPlaying = false
+    }
+
+    func seek(to time: TimeInterval) {
+        currentTime = min(max(0, time), duration)
     }
 
     func stop() async {

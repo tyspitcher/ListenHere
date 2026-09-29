@@ -12,7 +12,7 @@ struct CaptureComposerContentView: View {
 
     let captureViewModel: CaptureViewModel
     let recordingViewModel: VoiceRecordingViewModel
-    let previewViewModel: CaptureMediaPreviewViewModel
+    let previewViewModel: AudioPreviewViewModel
     let takePhoto: () -> Void
     let importPhoto: (Data, String) -> Void
     let reportPhotoImportFailure: () -> Void

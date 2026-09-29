@@ -11,5 +11,6 @@ protocol AudioPlaybackServicing {
     func loadAudio(at url: URL) async throws
     func play() throws
     func pause()
+    func seek(to time: TimeInterval)
     func stop() async
 }

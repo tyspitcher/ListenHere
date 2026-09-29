@@ -18,7 +18,7 @@ private struct CaptureComposerPreview: View {
 
     @State private var captureViewModel: CaptureViewModel
     @State private var recordingViewModel: VoiceRecordingViewModel
-    @State private var previewViewModel: CaptureMediaPreviewViewModel
+    @State private var previewViewModel: AudioPreviewViewModel
     @State private var title: String
     @State private var description: String
 
@@ -65,7 +65,7 @@ private struct CaptureComposerPreview: View {
     ) -> (
         capture: CaptureViewModel,
         recording: VoiceRecordingViewModel,
-        preview: CaptureMediaPreviewViewModel
+        preview: AudioPreviewViewModel
     ) {
         let mediaStore = MediaStore()
         let capture = CaptureViewModel(
@@ -77,8 +77,9 @@ private struct CaptureComposerPreview: View {
             service: PreviewAudioRecordingService(),
             clock: ContinuousRecordingClock()
         )
-        let preview = CaptureMediaPreviewViewModel(
-            captureViewModel: capture,
+        let preview = AudioPreviewViewModel(
+            audioURL: { capture.managedAudioURL },
+            fallbackDuration: { capture.draft.audioDurationSeconds },
             audioPlaybackService: PlaybackService(),
             waveformAnalyzer: PreviewAudioWaveformAnalyzer()
         )
@@ -171,6 +172,7 @@ private extension CaptureComposerPreview {
         func loadAudio(at url: URL) async throws { currentTime = 0 }
         func play() throws { isPlaying = true }
         func pause() { isPlaying = false }
+        func seek(to time: TimeInterval) { currentTime = min(max(0, time), duration) }
         func stop() async {
             currentTime = 0
             isPlaying = false

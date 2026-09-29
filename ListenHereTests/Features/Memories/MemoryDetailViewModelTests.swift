@@ -9,13 +9,15 @@ struct MemoryDetailViewModelTests {
         let photoURL = URL(filePath: "/tmp/photos/morning.heic")
         let audioURL = URL(filePath: "/tmp/audio/morning.m4a")
         let playbackService = AudioPlaybackServiceStub(duration: 12)
+        let waveformAnalyzer = MemoryDetailWaveformAnalyzerStub(samples: [0.2, 0.8])
         let viewModel = MemoryDetailViewModel(
             memoryID: UUID(),
             repository: MemoryDetailRepositoryStub(memory: makeMemory()),
             mediaStore: ManagedMediaReaderStub(
                 urls: ["photos/morning.heic": photoURL, "audio/morning.m4a": audioURL]
             ),
-            audioPlaybackService: playbackService
+            audioPlaybackService: playbackService,
+            waveformAnalyzer: waveformAnalyzer
         )
 
         await viewModel.load()
@@ -23,6 +25,7 @@ struct MemoryDetailViewModelTests {
         #expect(viewModel.photoURL == photoURL)
         #expect(viewModel.audioPlaybackState == .ready(duration: 12))
         #expect(playbackService.loadedURL == audioURL)
+        #expect(viewModel.waveformSamples == [0.2, 0.8])
     }
 
     @Test("Missing managed audio remains unavailable without affecting memory details")
@@ -141,6 +144,25 @@ struct MemoryDetailViewModelTests {
         #expect(viewModel.audioPlaybackState == .paused(elapsed: 4.5, duration: 12))
     }
 
+    @Test("Seeking moves playback while preserving the paused state")
+    func seekingMovesPlaybackPosition() async {
+        let audioURL = URL(filePath: "/tmp/audio/morning.m4a")
+        let playbackService = AudioPlaybackServiceStub(duration: 12)
+        let viewModel = MemoryDetailViewModel(
+            memoryID: UUID(),
+            repository: MemoryDetailRepositoryStub(memory: makeMemory()),
+            mediaStore: ManagedMediaReaderStub(urls: ["audio/morning.m4a": audioURL]),
+            audioPlaybackService: playbackService
+        )
+        await viewModel.load()
+
+        viewModel.seek(to: 0.75)
+
+        #expect(playbackService.currentTime == 9)
+        #expect(playbackService.isPlaying == false)
+        #expect(viewModel.audioPlaybackState == .paused(elapsed: 9, duration: 12))
+    }
+
     private func makeViewModel() -> MemoryDetailViewModel {
         MemoryDetailViewModel(
             memoryID: UUID(),
@@ -244,6 +266,10 @@ private final class AudioPlaybackServiceStub: AudioPlaybackServicing {
         isPlaying = false
     }
 
+    func seek(to time: TimeInterval) {
+        currentTime = min(max(0, time), duration)
+    }
+
     func stop() async {
         currentTime = 0
         isPlaying = false
@@ -251,6 +277,14 @@ private final class AudioPlaybackServiceStub: AudioPlaybackServicing {
 
     func setCurrentTime(_ time: TimeInterval) {
         currentTime = time
+    }
+}
+
+private struct MemoryDetailWaveformAnalyzerStub: AudioWaveformAnalyzing {
+    let samples: [Double]
+
+    nonisolated func samples(for url: URL, targetCount: Int) async throws -> [Double] {
+        samples
     }
 }
 

@@ -283,6 +283,7 @@ final class PreviewAudioPlaybackService: AudioPlaybackServicing {
     }
 
     func pause() {}
+    func seek(to time: TimeInterval) {}
     func stop() async {}
 }
 #endif

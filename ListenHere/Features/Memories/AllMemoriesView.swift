@@ -13,11 +13,12 @@ struct AllMemoriesView: View {
     let openMemory: (UUID) -> Void
     let makeCaptureViewModel: () -> CaptureViewModel
     let makeVoiceRecordingViewModel: (CaptureViewModel) -> CaptureRecordingSession
-    let makeCaptureMediaPreviewViewModel: (CaptureViewModel) -> CaptureMediaPreviewViewModel
+    let makeCaptureMediaPreviewViewModel: (CaptureViewModel) -> AudioPreviewViewModel
     let makeCameraCaptureViewModel: () -> CameraCaptureViewModel
     let makeMemoryEditSession: (MemorySummary) -> MemoryEditSessionViewModel
     let makeMemoryJournalAssignmentViewModel: (MemorySummary) -> MemoryJournalAssignmentViewModel
     let makeVoiceRecordingViewModelForEditing: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+    let makeAudioPreviewViewModelForEditing: (MemoryEditSessionViewModel) -> AudioPreviewViewModel
     let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     init(
@@ -26,11 +27,12 @@ struct AllMemoriesView: View {
         openMemory: @escaping (UUID) -> Void,
         makeCaptureViewModel: @escaping () -> CaptureViewModel,
         makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> CaptureRecordingSession,
-        makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> CaptureMediaPreviewViewModel,
+        makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> AudioPreviewViewModel,
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeMemoryEditSession: @escaping (MemorySummary) -> MemoryEditSessionViewModel,
         makeMemoryJournalAssignmentViewModel: @escaping (MemorySummary) -> MemoryJournalAssignmentViewModel,
         makeVoiceRecordingViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel,
+        makeAudioPreviewViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> AudioPreviewViewModel,
         makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory
     ) {
         _viewModel = State(wrappedValue: viewModel)
@@ -43,6 +45,7 @@ struct AllMemoriesView: View {
         self.makeMemoryEditSession = makeMemoryEditSession
         self.makeMemoryJournalAssignmentViewModel = makeMemoryJournalAssignmentViewModel
         self.makeVoiceRecordingViewModelForEditing = makeVoiceRecordingViewModelForEditing
+        self.makeAudioPreviewViewModelForEditing = makeAudioPreviewViewModelForEditing
         self.makeLocationPickerViewModel = makeLocationPickerViewModel
     }
 
@@ -87,6 +90,7 @@ struct AllMemoriesView: View {
             MemoryEditorSheet(
                 session: session,
                 recordingViewModel: makeVoiceRecordingViewModelForEditing(session),
+                audioPreviewViewModel: makeAudioPreviewViewModelForEditing(session),
                 makeLocationPickerViewModel: makeLocationPickerViewModel
             ) {
                 viewModel.load()
@@ -123,6 +127,7 @@ struct AllMemoriesView: View {
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
             makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeAudioPreviewViewModelForEditing: makePreviewEditingAudioPreviewViewModel,
             makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
@@ -142,6 +147,7 @@ struct AllMemoriesView: View {
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
             makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeAudioPreviewViewModelForEditing: makePreviewEditingAudioPreviewViewModel,
             makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
@@ -165,6 +171,7 @@ struct AllMemoriesView: View {
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
             makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeAudioPreviewViewModelForEditing: makePreviewEditingAudioPreviewViewModel,
             makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
@@ -184,6 +191,7 @@ struct AllMemoriesView: View {
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
             makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeAudioPreviewViewModelForEditing: makePreviewEditingAudioPreviewViewModel,
             makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
@@ -205,6 +213,7 @@ struct AllMemoriesView: View {
             makeMemoryEditSession: makePreviewMemoryEditSession,
             makeMemoryJournalAssignmentViewModel: makePreviewMemoryJournalAssignmentViewModel,
             makeVoiceRecordingViewModelForEditing: makePreviewEditingVoiceRecordingViewModel,
+            makeAudioPreviewViewModelForEditing: makePreviewEditingAudioPreviewViewModel,
             makeLocationPickerViewModel: makePreviewLocationPickerViewModel
         )
     }
@@ -241,9 +250,10 @@ private func makePreviewVoiceRecordingViewModel(
 @MainActor
 private func makePreviewCaptureMediaPreviewViewModel(
     captureViewModel: CaptureViewModel
-) -> CaptureMediaPreviewViewModel {
-    CaptureMediaPreviewViewModel(
-        captureViewModel: captureViewModel,
+) -> AudioPreviewViewModel {
+    AudioPreviewViewModel(
+        audioURL: { captureViewModel.managedAudioURL },
+        fallbackDuration: { captureViewModel.draft.audioDurationSeconds },
         audioPlaybackService: PreviewAudioPlaybackService(),
         waveformAnalyzer: PreviewAudioWaveformAnalyzer()
     )
@@ -289,5 +299,17 @@ private func makePreviewEditingVoiceRecordingViewModel(
             duration: recording.duration
         )
     }
+}
+
+@MainActor
+private func makePreviewEditingAudioPreviewViewModel(
+    editSession: MemoryEditSessionViewModel
+) -> AudioPreviewViewModel {
+    AudioPreviewViewModel(
+        audioURL: { editSession.audioURL },
+        fallbackDuration: { editSession.audioDurationSeconds },
+        audioPlaybackService: PreviewAudioPlaybackService(),
+        waveformAnalyzer: PreviewAudioWaveformAnalyzer()
+    )
 }
 #endif

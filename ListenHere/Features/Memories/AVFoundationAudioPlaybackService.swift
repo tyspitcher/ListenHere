@@ -36,11 +36,21 @@ final class AVFoundationAudioPlaybackService: NSObject, AudioPlaybackServicing, 
 
     func play() throws {
         guard let player else { throw AudioPlaybackServiceError.audioNotLoaded }
+        if player.currentTime >= player.duration {
+            player.currentTime = 0
+        }
         guard player.play() else { throw AudioPlaybackServiceError.couldNotStart }
     }
 
     func pause() {
         player?.pause()
+    }
+
+    func seek(to time: TimeInterval) {
+        guard let player else { return }
+        // AVAudioPlayer provides sample-backed local seeking. Keeping the mutation here prevents
+        // AVFoundation timing details from leaking into the shared waveform or its view models.
+        player.currentTime = min(max(0, time), player.duration)
     }
 
     func stop() async {
