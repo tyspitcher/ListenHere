@@ -85,19 +85,19 @@ struct MemoryDetailViewModelTests {
         #expect(viewModel.sharingAvailability(for: memory) == nil)
     }
 
-    @Test("Photo-and-sound memories are shared as video")
-    func photoAndSoundMemoryUsesVideoSharing() {
+    @Test("Photo-and-sound memories offer each share representation")
+    func photoAndSoundMemoryOffersEachSharingRepresentation() {
         let memory = makeMemory()
         let viewModel = makeViewModel()
 
-        #expect(viewModel.sharingAvailability(for: memory) == .video)
+        #expect(viewModel.sharingAvailability(for: memory) == .photoAndAudio)
     }
 
-    @Test("Sharing uses the original photo and requires a background for sound only")
+    @Test("Sharing keeps photo-only and audio-only memories in their original formats")
     func sharingSelectsTheCorrectMediaPath() {
         let viewModel = makeViewModel()
 
-        #expect(viewModel.sharingAvailability(for: makeMemory(thumbnail: nil, hasAudio: true)) == .needsBackground)
+        #expect(viewModel.sharingAvailability(for: makeMemory(thumbnail: nil, hasAudio: true)) == .audio)
         #expect(viewModel.sharingAvailability(for: makeMemory(thumbnail: .managedFile("photos/morning.heic"), hasAudio: false)) == .photo)
         #expect(viewModel.sharingAvailability(for: makeMemory(thumbnail: nil, hasAudio: false)) == .unavailable)
     }

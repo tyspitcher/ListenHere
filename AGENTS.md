@@ -120,7 +120,9 @@ Core behavior and terminology:
 - Show elapsed recording time and a live waveform in the sound tile. Recording may be stopped
   manually at any time and automatically stops after five minutes, preserving the partial clip.
 - Audio never autoplays. The user deliberately presses Play.
-- A memory can be exported as a short video and shared through the system share sheet.
+- A photo-and-sound memory can be exported as a short video; people may instead share its
+  original photo or ambient-audio file. Use the system share sheet so available destinations
+  reflect the apps installed on the device.
 - Vertical 9:16 is the default export for Reels and Shorts; square 1:1 is optional.
 - Local storage is foundational. Private iCloud sync is planned.
 - The product is not a social network and must not depend on user-generated community content.

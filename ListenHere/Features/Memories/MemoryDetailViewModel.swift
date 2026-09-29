@@ -13,6 +13,7 @@ enum MemoryDetailState: Equatable {
 final class MemoryDetailViewModel {
     private(set) var state: MemoryDetailState = .loading
     private(set) var photoURL: URL?
+    private(set) var audioURL: URL?
     private(set) var audioPlaybackState: AudioPlaybackState = .unavailable
     private(set) var recoveryErrorMessage: String?
 
@@ -40,6 +41,7 @@ final class MemoryDetailViewModel {
     private let mediaEditor: (any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading)?
     private let recoveryService: (any RecentlyDeletedRecovering)?
     private let audioPlaybackService: any AudioPlaybackServicing
+    private let videoExporter: any MemoryVideoExporting
     private let locationNameBackfiller: (any MemoryLocationNameBackfilling)?
     private var playbackRefreshTask: Task<Void, Never>?
     private var locationNameBackfillTask: Task<Void, Never>?
@@ -53,6 +55,7 @@ final class MemoryDetailViewModel {
         mediaEditor: (any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading)? = nil,
         recoveryService: (any RecentlyDeletedRecovering)? = nil,
         audioPlaybackService: any AudioPlaybackServicing,
+        videoExporter: any MemoryVideoExporting = AVFoundationMemoryVideoExporter(),
         locationNameBackfiller: (any MemoryLocationNameBackfilling)? = nil
     ) {
         self.memoryID = memoryID
@@ -63,6 +66,7 @@ final class MemoryDetailViewModel {
         self.mediaEditor = mediaEditor
         self.recoveryService = recoveryService
         self.audioPlaybackService = audioPlaybackService
+        self.videoExporter = videoExporter
         self.locationNameBackfiller = locationNameBackfiller
     }
 
@@ -81,14 +85,24 @@ final class MemoryDetailViewModel {
 
         switch (memory.thumbnail != nil, memory.hasAudio) {
         case (true, true):
-            return .video
+            return .photoAndAudio
         case (false, true):
-            return .needsBackground
+            return .audio
         case (true, false):
             return .photo
         case (false, false):
             return .unavailable
         }
+    }
+
+    func makeShareViewModel(for memory: MemorySummary) -> MemoryShareViewModel? {
+        guard let availability = sharingAvailability(for: memory) else { return nil }
+        return MemoryShareViewModel(
+            availability: availability,
+            photoURL: photoURL,
+            audioURL: audioURL,
+            videoExporter: videoExporter
+        )
     }
 
     func recover(at date: Date = Date()) -> Bool {
@@ -116,6 +130,7 @@ final class MemoryDetailViewModel {
         locationNameBackfillTask?.cancel()
         state = .loading
         photoURL = nil
+        audioURL = nil
         audioPlaybackState = .unavailable
         do {
             if let memory = try await loadMemory() {
@@ -175,6 +190,8 @@ final class MemoryDetailViewModel {
               let audioURL = try? mediaStore.fileURL(for: filename) else {
             return
         }
+
+        self.audioURL = audioURL
 
         do {
             try await audioPlaybackService.loadAudio(at: audioURL)

@@ -16,6 +16,7 @@ final class AppContainer {
     private let mediaStore: any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading
     private let audioRecordingServiceFactory: @MainActor () -> any AudioRecordingServicing
     private let audioPlaybackServiceFactory: @MainActor () -> any AudioPlaybackServicing
+    private let videoExporterFactory: @MainActor () -> any MemoryVideoExporting
     private let cameraAuthorizationServiceFactory: @MainActor () -> any CameraAuthorizationServicing
     private let waveformAnalyzerFactory: @MainActor () -> any AudioWaveformAnalyzing
     private let currentLocationProviderFactory: @MainActor () -> any CurrentLocationProviding
@@ -32,6 +33,9 @@ final class AppContainer {
         },
         audioPlaybackServiceFactory: @escaping @MainActor () -> any AudioPlaybackServicing = {
             AVFoundationAudioPlaybackService()
+        },
+        videoExporterFactory: @escaping @MainActor () -> any MemoryVideoExporting = {
+            AVFoundationMemoryVideoExporter()
         },
         cameraAuthorizationServiceFactory: @escaping @MainActor () -> any CameraAuthorizationServicing = {
             AVFoundationCameraAuthorizationService()
@@ -52,6 +56,7 @@ final class AppContainer {
         self.mediaStore = mediaStore
         self.audioRecordingServiceFactory = audioRecordingServiceFactory
         self.audioPlaybackServiceFactory = audioPlaybackServiceFactory
+        self.videoExporterFactory = videoExporterFactory
         self.cameraAuthorizationServiceFactory = cameraAuthorizationServiceFactory
         self.waveformAnalyzerFactory = waveformAnalyzerFactory
         self.currentLocationProviderFactory = currentLocationProviderFactory
@@ -138,6 +143,7 @@ final class AppContainer {
             mediaEditor: mediaStore,
             recoveryService: recentlyDeletedRepository,
             audioPlaybackService: audioPlaybackServiceFactory(),
+            videoExporter: videoExporterFactory(),
             locationNameBackfiller: makeLocationNameBackfiller()
         )
     }
