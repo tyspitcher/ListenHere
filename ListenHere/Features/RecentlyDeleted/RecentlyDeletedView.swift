@@ -82,26 +82,35 @@ private struct RecentlyDeletedRow: View {
         let palette = theme.palette(for: colorScheme)
 
         HStack(spacing: 12) {
-            thumbnail(palette: palette)
+            Button(action: openItem) {
+                HStack(spacing: 12) {
+                    thumbnail(palette: palette)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.title)
-                    .font(.headline)
-                Text("Deletes \(item.expiresAt, style: .relative)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.title)
+                            .font(.headline)
+                        Text("Deletes \(item.expiresAt, style: .relative)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
             }
-
-            Spacer()
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens this item in read-only mode")
 
             Button {
                 areActionsPresented = true
             } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 44, height: 44)
+                Label("Actions for \(item.title)", systemImage: "ellipsis")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 56, height: 56)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Actions for \(item.title)")
             .accessibilityHint("Recover or permanently delete this item")
             // Anchor the native confirmation dialog to the selected row's action control.
             // This keeps it within reach on iPhone and beside the relevant item on iPad.
@@ -117,16 +126,15 @@ private struct RecentlyDeletedRow: View {
                 Text("Choose whether to recover this item or delete it permanently.")
             }
         }
-        .contentShape(.rect)
-        .onTapGesture {
-            switch item.kind {
-            case .memory:
-                openMemory()
-            case .journal:
-                openJournal()
-            }
+    }
+
+    private func openItem() {
+        switch item.kind {
+        case .memory:
+            openMemory()
+        case .journal:
+            openJournal()
         }
-        .accessibilityHint("Opens this item in read-only mode")
     }
 
     @ViewBuilder
