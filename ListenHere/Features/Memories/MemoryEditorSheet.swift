@@ -3,8 +3,11 @@ import UniformTypeIdentifiers
 
 struct MemoryEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
     @State private var session: MemoryEditSessionViewModel
     @State private var recordingViewModel: VoiceRecordingViewModel
+    @State private var audioPreviewViewModel: AudioPreviewViewModel
     @State private var isChoosingAudio = false
     @State private var isImportingAudio = false
     @State private var audioImportTask: Task<Void, Never>?
@@ -20,11 +23,13 @@ struct MemoryEditorSheet: View {
     init(
         session: MemoryEditSessionViewModel,
         recordingViewModel: VoiceRecordingViewModel,
+        audioPreviewViewModel: AudioPreviewViewModel,
         makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory,
         onSaved: @escaping () async -> Void
     ) {
         _session = State(wrappedValue: session)
         _recordingViewModel = State(wrappedValue: recordingViewModel)
+        _audioPreviewViewModel = State(wrappedValue: audioPreviewViewModel)
         self.makeLocationPickerViewModel = makeLocationPickerViewModel
         self.onSaved = onSaved
     }
@@ -131,6 +136,8 @@ struct MemoryEditorSheet: View {
             )
         }
         .task { await session.loadJournals() }
+        .task(id: session.audioFilename) { await audioPreviewViewModel.loadAudio() }
+        .onDisappear { Task { await audioPreviewViewModel.shutdown() } }
         .alert("Couldn’t Update Memory", isPresented: sessionErrorIsPresented) {
             Button("OK") { session.dismissError() }
         } message: {
@@ -183,7 +190,25 @@ struct MemoryEditorSheet: View {
     private var soundSection: some View {
         Section("Sound") {
             if session.hasAudio {
-                Label("Sound Attached", systemImage: "waveform")
+                AudioWaveformPlayerView(
+                    samples: audioPreviewViewModel.waveformSamples,
+                    playbackState: audioPreviewViewModel.audioPlaybackState,
+                    togglePlayback: audioPreviewViewModel.togglePlayback,
+                    seek: audioPreviewViewModel.seek,
+                    removeAudio: soundRemovalAction
+                )
+                .confirmationDialog(
+                    "Remove Sound?",
+                    isPresented: $isConfirmingSoundRemoval,
+                    titleVisibility: .visible
+                ) {
+                    Button("Remove Sound", role: .destructive, action: removeSound)
+                } message: {
+                    Text(
+                        "Saving will permanently remove this sound from the memory. "
+                            + "This can’t be undone."
+                    )
+                }
             } else {
                 Label("No Sound", systemImage: "waveform.slash")
                     .foregroundStyle(.secondary)
@@ -193,10 +218,21 @@ struct MemoryEditorSheet: View {
                 Button(role: .destructive) {
                     Task { await recordingViewModel.stop() }
                 } label: {
-                    Label(
-                        "Stop Recording  \(recordingViewModel.elapsedDescription)",
-                        systemImage: "stop.fill"
-                    )
+                    HStack(spacing: 10) {
+                        AudioWaveformView(
+                            liveSamples: recordingViewModel.levels,
+                            tint: theme.palette(for: colorScheme).destructive
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 32)
+
+                        Text(recordingViewModel.elapsedDescription)
+                            .font(.subheadline.monospacedDigit())
+
+                        Label("Stop Recording", systemImage: "stop.fill")
+                            .labelStyle(.iconOnly)
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
                 }
             } else if recordingViewModel.hasUnsavedRecording {
                 HStack {
@@ -204,9 +240,7 @@ struct MemoryEditorSheet: View {
                     Text("Preparing Recording")
                 }
             } else {
-                Button {
-                    Task { await recordingViewModel.start() }
-                } label: {
+                Button(action: startRecording) {
                     Label(
                         session.hasAudio ? "Record Replacement Sound" : "Record Sound",
                         systemImage: "mic"
@@ -227,24 +261,6 @@ struct MemoryEditorSheet: View {
                             systemImage: "folder"
                         )
                     }
-                }
-            }
-
-            if session.hasAudio && recordingViewModel.hasUnsavedRecording == false {
-                Button("Remove Sound", systemImage: "trash", role: .destructive) {
-                    isConfirmingSoundRemoval = true
-                }
-                .confirmationDialog(
-                    "Remove Sound?",
-                    isPresented: $isConfirmingSoundRemoval,
-                    titleVisibility: .visible
-                ) {
-                    Button("Remove Sound", role: .destructive) { session.removeAudio() }
-                } message: {
-                    Text(
-                        "Saving will permanently remove this sound from the memory. "
-                            + "This can’t be undone."
-                    )
                 }
             }
         }
@@ -331,6 +347,25 @@ struct MemoryEditorSheet: View {
             await recordingViewModel.shutdown()
             await onSaved()
             dismiss()
+        }
+    }
+
+    private func startRecording() {
+        Task {
+            await audioPreviewViewModel.stopPlayback()
+            await recordingViewModel.start()
+        }
+    }
+
+    private var soundRemovalAction: (() -> Void)? {
+        guard recordingViewModel.hasUnsavedRecording == false else { return nil }
+        return { isConfirmingSoundRemoval = true }
+    }
+
+    private func removeSound() {
+        Task {
+            await audioPreviewViewModel.resetAudio()
+            session.removeAudio()
         }
     }
 

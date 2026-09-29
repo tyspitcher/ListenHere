@@ -24,6 +24,7 @@ final class MemoryEditSessionViewModel: Identifiable {
     private(set) var photoFilename: String?
     private(set) var photoURL: URL?
     private(set) var audioFilename: String?
+    private(set) var audioURL: URL?
     private(set) var audioDurationSeconds: Double?
     private(set) var isSaving = false
     private(set) var errorMessage: String?
@@ -76,6 +77,11 @@ final class MemoryEditSessionViewModel: Identifiable {
             photoURL = nil
         }
         audioFilename = memory.audioFilename
+        if let audioFilename = memory.audioFilename {
+            audioURL = try? mediaStore.fileURL(for: audioFilename)
+        } else {
+            audioURL = nil
+        }
         originalAudioFilename = memory.audioFilename
         audioDurationSeconds = memory.audioDurationSeconds
         selectedJournalIDs = memory.journalIDs
@@ -149,6 +155,7 @@ final class MemoryEditSessionViewModel: Identifiable {
     func replaceAudio(_ data: Data, fileExtension: String, duration: Double? = nil) {
         replace(data, kind: .audio, fileExtension: fileExtension) { file in
             audioFilename = file.filename
+            audioURL = try? mediaStore.fileURL(for: file.filename)
             audioDurationSeconds = duration
         }
     }
@@ -167,6 +174,7 @@ final class MemoryEditSessionViewModel: Identifiable {
         do {
             try deleteStagedFileIfNeeded(audioFilename)
             audioFilename = nil
+            audioURL = nil
             audioDurationSeconds = nil
         } catch {
             reportCleanupFailure()

@@ -9,7 +9,7 @@ struct CaptureSoundTile: View {
     let hasAudio: Bool
     let isEnabled: Bool
     let recordingViewModel: VoiceRecordingViewModel
-    let previewViewModel: CaptureMediaPreviewViewModel
+    let previewViewModel: AudioPreviewViewModel
     let startRecording: () -> Void
     let chooseAudioFile: () -> Void
     let removeAudio: () -> Void
@@ -86,16 +86,20 @@ struct CaptureSoundTile: View {
         Button {
             Task { await recordingViewModel.stop() }
         } label: {
-            VStack(spacing: 10) {
-                Label("Stop Recording", systemImage: "stop.fill")
-                    .font(.headline)
-                Text(recordingViewModel.elapsedDescription)
-                    .font(.title3.monospacedDigit())
+            HStack(spacing: 10) {
                 AudioWaveformView(
                     liveSamples: recordingViewModel.levels,
                     tint: .white
                 )
-                .frame(height: 42)
+                .frame(maxWidth: .infinity)
+                .frame(height: 32)
+
+                Text(recordingViewModel.elapsedDescription)
+                    .font(.subheadline.monospacedDigit())
+
+                Label("Stop Recording", systemImage: "stop.fill")
+                    .labelStyle(.iconOnly)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .frame(maxWidth: .infinity, minHeight: 180)
             .padding(.horizontal)
@@ -109,80 +113,23 @@ struct CaptureSoundTile: View {
     }
 
     private var audioPreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            AudioWaveformView(
-                samples: previewViewModel.waveformSamples,
-                progress: previewViewModel.playbackProgress,
-                tint: palette.secondaryAccent
-            )
-            .frame(height: 72)
-
-            HStack(spacing: 8) {
-                Button(
-                    playbackButtonTitle,
-                    systemImage: playbackButtonImage,
-                    action: previewViewModel.togglePlayback
-                )
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.circle)
-                .frame(minWidth: 44, minHeight: 44)
-                .disabled(playbackIsUnavailable)
-
-                Text(playbackTimeDescription)
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Button("Remove Sound", systemImage: "trash", action: presentRemovalConfirmation)
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.circle)
-                    .tint(palette.destructive)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .confirmationDialog(
-                        "Remove This Sound?",
-                        isPresented: $removalConfirmationIsPresented,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Remove Sound", role: .destructive, action: removeAudio)
-                        Button("Keep Sound", role: .cancel) {}
-                    } message: {
-                        Text("The sound will be removed from this unsaved memory.")
-                    }
-            }
-        }
+        AudioWaveformPlayerView(
+            samples: previewViewModel.waveformSamples,
+            playbackState: previewViewModel.audioPlaybackState,
+            togglePlayback: previewViewModel.togglePlayback,
+            seek: previewViewModel.seek,
+            removeAudio: presentRemovalConfirmation
+        )
         .padding()
-        .accessibilityElement(children: .contain)
-    }
-
-    private var playbackButtonTitle: String {
-        if case .playing = previewViewModel.audioPlaybackState { "Pause Sound" } else { "Play Sound" }
-    }
-
-    private var playbackButtonImage: String {
-        if case .playing = previewViewModel.audioPlaybackState { "pause.fill" } else { "play.fill" }
-    }
-
-    private var playbackIsUnavailable: Bool {
-        switch previewViewModel.audioPlaybackState {
-        case .unavailable, .failed:
-            true
-        case .ready, .playing, .paused:
-            false
-        }
-    }
-
-    private var playbackTimeDescription: String {
-        switch previewViewModel.audioPlaybackState {
-        case .ready(let duration):
-            "0:00 / \(Self.formattedTime(duration ?? 0))"
-        case .playing(let elapsed, let duration), .paused(let elapsed, let duration):
-            "\(Self.formattedTime(elapsed)) / \(Self.formattedTime(duration))"
-        case .unavailable:
-            "Audio unavailable"
-        case .failed:
-            "Playback failed"
+        .confirmationDialog(
+            "Remove This Sound?",
+            isPresented: $removalConfirmationIsPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Sound", role: .destructive, action: removeAudio)
+            Button("Keep Sound", role: .cancel) {}
+        } message: {
+            Text("The sound will be removed from this unsaved memory.")
         }
     }
 
@@ -190,10 +137,4 @@ struct CaptureSoundTile: View {
         removalConfirmationIsPresented = true
     }
 
-    private static func formattedTime(_ interval: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(interval.rounded()))
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return seconds < 10 ? "\(minutes):0\(seconds)" : "\(minutes):\(seconds)"
-    }
 }

@@ -11,11 +11,12 @@ struct MemoryListView: View {
     private let openMemory: (UUID) -> Void
     private let makeCaptureViewModel: () -> CaptureViewModel
     private let makeVoiceRecordingViewModel: (CaptureViewModel) -> CaptureRecordingSession
-    private let makeCaptureMediaPreviewViewModel: (CaptureViewModel) -> CaptureMediaPreviewViewModel
+    private let makeCaptureMediaPreviewViewModel: (CaptureViewModel) -> AudioPreviewViewModel
     private let makeCameraCaptureViewModel: () -> CameraCaptureViewModel
     private let makeMemoryEditSession: (MemorySummary) -> MemoryEditSessionViewModel
     private let makeMemoryJournalAssignmentViewModel: (MemorySummary) -> MemoryJournalAssignmentViewModel
     private let makeVoiceRecordingViewModelForEditing: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+    private let makeAudioPreviewViewModelForEditing: (MemoryEditSessionViewModel) -> AudioPreviewViewModel
     private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     init(
@@ -23,11 +24,12 @@ struct MemoryListView: View {
         openMemory: @escaping (UUID) -> Void,
         makeCaptureViewModel: @escaping () -> CaptureViewModel,
         makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> CaptureRecordingSession,
-        makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> CaptureMediaPreviewViewModel,
+        makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> AudioPreviewViewModel,
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeMemoryEditSession: @escaping (MemorySummary) -> MemoryEditSessionViewModel,
         makeMemoryJournalAssignmentViewModel: @escaping (MemorySummary) -> MemoryJournalAssignmentViewModel,
         makeVoiceRecordingViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel,
+        makeAudioPreviewViewModelForEditing: @escaping (MemoryEditSessionViewModel) -> AudioPreviewViewModel,
         makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory
     ) {
         _viewModel = State(wrappedValue: viewModel)
@@ -39,6 +41,7 @@ struct MemoryListView: View {
         self.makeMemoryEditSession = makeMemoryEditSession
         self.makeMemoryJournalAssignmentViewModel = makeMemoryJournalAssignmentViewModel
         self.makeVoiceRecordingViewModelForEditing = makeVoiceRecordingViewModelForEditing
+        self.makeAudioPreviewViewModelForEditing = makeAudioPreviewViewModelForEditing
         self.makeLocationPickerViewModel = makeLocationPickerViewModel
     }
 
@@ -99,6 +102,7 @@ struct MemoryListView: View {
             MemoryEditorSheet(
                 session: session,
                 recordingViewModel: makeVoiceRecordingViewModelForEditing(session),
+                audioPreviewViewModel: makeAudioPreviewViewModelForEditing(session),
                 makeLocationPickerViewModel: makeLocationPickerViewModel
             ) {
                 await viewModel.load()

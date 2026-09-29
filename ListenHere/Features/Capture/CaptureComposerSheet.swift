@@ -15,7 +15,7 @@ struct CaptureComposerSheet: View {
 
     @State private var recordingViewModel: VoiceRecordingViewModel
     @State private var recordingPhotoCameraController: RecordingPhotoCameraController?
-    @State private var previewViewModel: CaptureMediaPreviewViewModel
+    @State private var previewViewModel: AudioPreviewViewModel
     @State private var cameraViewModel: CameraCaptureViewModel
     @State private var title: String
     @State private var description: String
@@ -30,7 +30,7 @@ struct CaptureComposerSheet: View {
     init(
         viewModel: CaptureViewModel,
         makeVoiceRecordingViewModel: @escaping (CaptureViewModel) -> CaptureRecordingSession,
-        makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> CaptureMediaPreviewViewModel,
+        makeCaptureMediaPreviewViewModel: @escaping (CaptureViewModel) -> AudioPreviewViewModel,
         makeCameraCaptureViewModel: @escaping () -> CameraCaptureViewModel,
         makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory,
         onSaved: @escaping () -> Void

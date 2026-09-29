@@ -4,6 +4,7 @@ import SwiftUI
 
 struct AudioWaveformView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.layoutDirection) private var layoutDirection
 
     private let samples: [WaveformSample]
     private let progress: Double
@@ -16,7 +17,7 @@ struct AudioWaveformView: View {
         }
         self.progress = progress
         self.tint = tint
-        style = .recorded
+        style = .playback
     }
 
     init(liveSamples: [AudioMeterLevel], tint: Color) {
@@ -51,6 +52,7 @@ struct AudioWaveformView: View {
 
             for (index, sample) in visibleSamples.enumerated() {
                 let x = Double(index) * (barWidth + spacing)
+                let visualX = layoutDirection == .rightToLeft ? size.width - x - barWidth : x
                 let isPlayed = (x + barWidth / 2) / max(size.width, 1) <= clampedProgress
                 let emphasis = usesRecordingVisualLanguage ? Double(index + 1) / Double(visibleSamples.count) : 1
                 let averageHeight = Self.barHeight(
@@ -59,7 +61,7 @@ struct AudioWaveformView: View {
                     live: usesRecordingVisualLanguage
                 )
                 let averageRect = CGRect(
-                    x: x,
+                    x: visualX,
                     y: (size.height - averageHeight) / 2,
                     width: barWidth,
                     height: averageHeight
@@ -68,8 +70,6 @@ struct AudioWaveformView: View {
                 switch style {
                 case .live:
                     opacity = 0.35 + 0.65 * emphasis
-                case .recorded:
-                    opacity = isPlayed ? 0.55 + 0.45 * emphasis : 0.18 + 0.25 * emphasis
                 case .playback:
                     opacity = isPlayed ? 1 : 0.32
                 }
@@ -82,7 +82,7 @@ struct AudioWaveformView: View {
                 let peakHeight = Self.barHeight(for: sample.peak, in: size.height, live: true)
                 let peakWidth = max(1, barWidth * 0.42)
                 let peakRect = CGRect(
-                    x: x + (barWidth - peakWidth) / 2,
+                    x: visualX + (barWidth - peakWidth) / 2,
                     y: (size.height - peakHeight) / 2,
                     width: peakWidth,
                     height: peakHeight
@@ -93,6 +93,14 @@ struct AudioWaveformView: View {
                     Path(roundedRect: peakRect, cornerRadius: peakWidth / 2),
                     with: .color(tint.opacity(peakOpacity))
                 )
+            }
+
+            if style == .playback {
+                let logicalX = clampedProgress * size.width
+                let visualX = layoutDirection == .rightToLeft ? size.width - logicalX : logicalX
+                let playheadX = min(max(1, visualX), max(1, size.width - 1))
+                let playhead = CGRect(x: playheadX - 1, y: 0, width: 2, height: size.height)
+                context.fill(Path(roundedRect: playhead, cornerRadius: 1), with: .color(tint))
             }
         }
     }
@@ -125,7 +133,6 @@ struct AudioWaveformView: View {
 private extension AudioWaveformView {
     enum Style: Equatable {
         case playback
-        case recorded
         case live
     }
 

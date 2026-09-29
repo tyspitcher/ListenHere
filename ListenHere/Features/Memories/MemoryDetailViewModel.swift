@@ -15,6 +15,7 @@ final class MemoryDetailViewModel {
     private(set) var photoURL: URL?
     private(set) var audioURL: URL?
     private(set) var audioPlaybackState: AudioPlaybackState = .unavailable
+    private(set) var waveformSamples: [Double] = []
     private(set) var recoveryErrorMessage: String?
 
     var canEdit: Bool {
@@ -41,6 +42,7 @@ final class MemoryDetailViewModel {
     private let mediaEditor: (any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading)?
     private let recoveryService: (any RecentlyDeletedRecovering)?
     private let audioPlaybackService: any AudioPlaybackServicing
+    private let waveformAnalyzer: (any AudioWaveformAnalyzing)?
     private let videoExporter: any MemoryVideoExporting
     private let locationNameBackfiller: (any MemoryLocationNameBackfilling)?
     private var playbackRefreshTask: Task<Void, Never>?
@@ -55,6 +57,7 @@ final class MemoryDetailViewModel {
         mediaEditor: (any ManagedMediaStoring & ManagedMediaDeleting & ManagedMediaReading)? = nil,
         recoveryService: (any RecentlyDeletedRecovering)? = nil,
         audioPlaybackService: any AudioPlaybackServicing,
+        waveformAnalyzer: (any AudioWaveformAnalyzing)? = nil,
         videoExporter: any MemoryVideoExporting = AVFoundationMemoryVideoExporter(),
         locationNameBackfiller: (any MemoryLocationNameBackfilling)? = nil
     ) {
@@ -66,6 +69,7 @@ final class MemoryDetailViewModel {
         self.mediaEditor = mediaEditor
         self.recoveryService = recoveryService
         self.audioPlaybackService = audioPlaybackService
+        self.waveformAnalyzer = waveformAnalyzer
         self.videoExporter = videoExporter
         self.locationNameBackfiller = locationNameBackfiller
     }
@@ -132,6 +136,7 @@ final class MemoryDetailViewModel {
         photoURL = nil
         audioURL = nil
         audioPlaybackState = .unavailable
+        waveformSamples = []
         do {
             if let memory = try await loadMemory() {
                 guard Task.isCancelled == false else { return }
@@ -171,6 +176,16 @@ final class MemoryDetailViewModel {
         }
     }
 
+    func seek(to progress: Double) {
+        guard audioURL != nil,
+              let duration = currentAudioDuration,
+              duration > 0 else {
+            return
+        }
+        audioPlaybackService.seek(to: min(max(0, progress), 1) * duration)
+        updatePlaybackState()
+    }
+
     func stopPlayback() async {
         playbackRefreshTask?.cancel()
         playbackRefreshTask = nil
@@ -198,6 +213,20 @@ final class MemoryDetailViewModel {
             audioPlaybackState = .ready(duration: currentAudioDuration)
         } catch {
             audioPlaybackState = .unavailable
+        }
+
+        guard let waveformAnalyzer else { return }
+
+        do {
+            let samples = try await waveformAnalyzer.samples(for: audioURL, targetCount: 36)
+            guard Task.isCancelled == false, self.audioURL == audioURL else { return }
+            waveformSamples = samples
+        } catch is CancellationError {
+            return
+        } catch {
+            // Waveform extraction is decorative; playback remains available if analysis fails.
+            guard self.audioURL == audioURL else { return }
+            waveformSamples = []
         }
     }
 

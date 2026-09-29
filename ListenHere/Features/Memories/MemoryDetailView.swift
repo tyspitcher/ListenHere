@@ -7,15 +7,18 @@ struct MemoryDetailView: View {
     @State private var editSession: MemoryEditSessionViewModel?
     @State private var sharingViewModel: MemoryShareViewModel?
     private let makeVoiceRecordingViewModel: (MemoryEditSessionViewModel) -> VoiceRecordingViewModel
+    private let makeAudioPreviewViewModel: (MemoryEditSessionViewModel) -> AudioPreviewViewModel
     private let makeLocationPickerViewModel: LocationPickerViewModelFactory
 
     init(
         viewModel: MemoryDetailViewModel,
         makeVoiceRecordingViewModel: @escaping (MemoryEditSessionViewModel) -> VoiceRecordingViewModel,
+        makeAudioPreviewViewModel: @escaping (MemoryEditSessionViewModel) -> AudioPreviewViewModel,
         makeLocationPickerViewModel: @escaping LocationPickerViewModelFactory
     ) {
         _viewModel = State(wrappedValue: viewModel)
         self.makeVoiceRecordingViewModel = makeVoiceRecordingViewModel
+        self.makeAudioPreviewViewModel = makeAudioPreviewViewModel
         self.makeLocationPickerViewModel = makeLocationPickerViewModel
     }
 
@@ -27,9 +30,11 @@ struct MemoryDetailView: View {
                     memory: memory,
                     photoURL: viewModel.photoURL,
                     audioPlaybackState: viewModel.audioPlaybackState,
+                    waveformSamples: viewModel.waveformSamples,
                     isRecentlyDeleted: viewModel.isRecentlyDeleted,
                     recoverMemory: recoverMemory,
-                    togglePlayback: viewModel.togglePlayback
+                    togglePlayback: viewModel.togglePlayback,
+                    seek: viewModel.seek
                 )
             case .unavailable:
                 ContentUnavailableView(
@@ -65,6 +70,7 @@ struct MemoryDetailView: View {
             MemoryEditorSheet(
                 session: session,
                 recordingViewModel: makeVoiceRecordingViewModel(session),
+                audioPreviewViewModel: makeAudioPreviewViewModel(session),
                 makeLocationPickerViewModel: makeLocationPickerViewModel
             ) {
                 await viewModel.load()
